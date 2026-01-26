@@ -2,11 +2,27 @@ import streamlit as st
 from auth_state import AuthManager
 from config import API_ENDPOINTS
 import requests
-import folium
-from streamlit_folium import st_folium
+import plotly.graph_objects as go
 import os
 
 os.environ["NO_PROXY"] = "localhost,127.0.0.1"
+
+CROP_COLORS = {
+    '水稻': '#4CAF50',
+    '小麦': '#FFC107',
+    '玉米': '#FF9800',
+    '大豆': '#8BC34A',
+    '棉花': '#E91E63',
+    '油菜': '#FFEB3B',
+    '其他': '#607D8B'
+}
+
+def hex_to_rgba(hex_color, alpha=0.25):
+    hex_color = hex_color.lstrip('#')
+    r = int(hex_color[0:2], 16)
+    g = int(hex_color[2:4], 16)
+    b = int(hex_color[4:6], 16)
+    return f'rgba({r}, {g}, {b}, {alpha})'
 
 def visualization_page():
     st.markdown("""
@@ -14,7 +30,7 @@ def visualization_page():
                padding: 30px; border-radius: 15px; margin-bottom: 30px;'>
         <h1 style='margin: 0; color: white; font-size: 36px;'>🗺️ 农田可视化</h1>
         <p style='margin: 10px 0 0 0; color: rgba(255,255,255,0.9);'>
-            在地图上查看和管理您的农田分布
+            在统一坐标系下查看农田分布与作物布局
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -27,53 +43,95 @@ def visualization_page():
     if response.status_code == 200:
         farmlands = response.json()
         
-        colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F39C12', '#E74C3C', '#9B59B6']
-        
         if farmlands:
             col_map, col_stats = st.columns([3, 1])
             
             with col_map:
-                st.markdown("### 🗺️ 农田地图")
+                st.markdown("### 📐 农田坐标图")
                 
-                if len(farmlands) > 0:
-                    center_lat = sum(p[0] for f in farmlands for p in f['boundary_coords']) / sum(len(f['boundary_coords']) for f in farmlands)
-                    center_lng = sum(p[1] for f in farmlands for p in f['boundary_coords']) / sum(len(f['boundary_coords']) for f in farmlands)
-                else:
-                    center_lat, center_lng = 30.6742, 104.0667
+                fig = go.Figure()
                 
-                m = folium.Map(location=[center_lat, center_lng], zoom_start=14)
-                
-                for idx, farmland in enumerate(farmlands):
-                    color = colors[idx % len(colors)]
+                for farmland in farmlands:
+                    coords = farmland['boundary_coords']
+                    x_coords = [coord[1] for coord in coords] + [coords[0][1]]
+                    y_coords = [coord[0] for coord in coords] + [coords[0][0]]
                     
-                    polygon = folium.Polygon(
-                        locations=farmland['boundary_coords'],
-                        color=color,
-                        fill=True,
-                        fill_color=color,
-                        fill_opacity=0.4,
-                        stroke=True,
-                        stroke_width=3,
-                        popup=f"""
-                        <div style='font-family: Arial, sans-serif;'>
-                            <h3 style='margin: 0 0 10px 0; color: {color};'>{farmland['name']}</h3>
-                            <p style='margin: 5px 0;'><b>🌱 作物:</b> {farmland['crop_type']}</p>
-                            <p style='margin: 5px 0;'><b>📐 面积:</b> {farmland['area']} 亩</p>
-                            <p style='margin: 5px 0;'><b>📅 创建:</b> {farmland['created_at'][:10]}</p>
-                        </div>
-                        """
-                    )
-                    polygon.add_to(m)
+                    color = CROP_COLORS.get(farmland['crop_type'], CROP_COLORS['其他'])
+                    fill_color = hex_to_rgba(color, 0.25)
                     
-                    folium.Marker(
-                        location=farmland['boundary_coords'][0],
-                        popup=farmland['name'],
-                        icon=folium.Icon(color='green', icon='leaf', prefix='fa')
-                    ).add_to(m)
+                    fig.add_trace(go.Scatter(
+                        x=x_coords,
+                        y=y_coords,
+                        mode='lines',
+                        fill='toself',
+                        fillcolor=fill_color,
+                        line=dict(color=color, width=3),
+                        name=farmland['name'],
+                        hovertemplate=f"<b>{farmland['name']}</b><br>" +
+                                    f"作物: {farmland['crop_type']}<br>" +
+                                    f"面积: {farmland['area']} 亩<br>" +
+                                    f"创建时间: {farmland['created_at'][:10]}<br>" +
+                                    f"<extra></extra>",
+                        legendgroup=farmland['crop_type'],
+                        showlegend=True
+                    ))
+                    
+                    center_x = sum(x_coords[:-1]) / len(x_coords[:-1])
+                    center_y = sum(y_coords[:-1]) / len(y_coords[:-1])
+                    
+                    fig.add_trace(go.Scatter(
+                        x=[center_x],
+                        y=[center_y],
+                        mode='text',
+                        text=[farmland['name']],
+                        textfont=dict(size=10, color='black', family='Arial'),
+                        textposition='middle center',
+                        hoverinfo='skip',
+                        showlegend=False
+                    ))
                 
-                    st_folium(m, width=800, height=600)
+                fig.update_layout(
+                    title="",
+                    xaxis_title="经度 (X轴)",
+                    yaxis_title="纬度 (Y轴)",
+                    hovermode='closest',
+                    showlegend=True,
+                    legend=dict(
+                        orientation="v",
+                        yanchor="top",
+                        y=0.99,
+                        xanchor="left",
+                        x=1.02,
+                        bgcolor='rgba(255,255,255,0.9)',
+                        bordercolor='#ddd',
+                        borderwidth=1,
+                        font=dict(size=11)
+                    ),
+                    margin=dict(l=60, r=160, t=40, b=60),
+                    height=600,
+                    plot_bgcolor='white',
+                    paper_bgcolor='white'
+                )
                 
-                st.caption("💡 提示：点击地图上的多边形查看农田详细信息")
+                fig.update_xaxes(
+                    gridcolor='#e0e0e0',
+                    gridwidth=1,
+                    zeroline=True,
+                    zerolinewidth=2,
+                    zerolinecolor='#333'
+                )
+                
+                fig.update_yaxes(
+                    gridcolor='#e0e0e0',
+                    gridwidth=1,
+                    zeroline=True,
+                    zerolinewidth=2,
+                    zerolinecolor='#333'
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+                
+                st.caption("💡 提示：鼠标悬停在农田上可查看详细信息，图例显示各农田名称")
             
             with col_stats:
                 st.markdown("### 📊 农田统计")
@@ -106,31 +164,54 @@ def visualization_page():
                 
                 st.divider()
                 
-                st.markdown("### 🎨 农田图例")
-                for idx, farmland in enumerate(farmlands):
-                    color = colors[idx % len(colors)]
+                st.markdown("### 🎨 作物图例")
+                unique_crops = {}
+                for f in farmlands:
+                    if f['crop_type'] not in unique_crops:
+                        unique_crops[f['crop_type']] = {
+                            'count': 1,
+                            'areas': [f['area']]
+                        }
+                    else:
+                        unique_crops[f['crop_type']]['count'] += 1
+                        unique_crops[f['crop_type']]['areas'].append(f['area'])
+                
+                for crop, data in unique_crops.items():
+                    color = CROP_COLORS.get(crop, CROP_COLORS['其他'])
+                    avg_area = sum(data['areas']) / len(data['areas'])
                     st.markdown(f"""
-                    <div style='display: flex; align-items: center; margin-bottom: 10px; padding: 8px; 
-                               background: #f8f9fa; border-radius: 8px;'>
-                        <div style='width: 24px; height: 24px; background-color: {color}; 
-                                   border-radius: 4px; margin-right: 10px; border: 2px solid {color};'></div>
-                        <span style='font-size: 13px; color: #333;'>{farmland['name']}</span>
+                    <div style='margin-bottom: 12px;'>
+                        <div style='display: flex; align-items: center; margin-bottom: 5px;'>
+                            <div style='width: 20px; height: 20px; background-color: {color}; 
+                                       border-radius: 4px; margin-right: 10px; border: 2px solid {color};'></div>
+                            <span style='font-size: 14px; color: #333; font-weight: 500;'>{crop}</span>
+                        </div>
+                        <div style='margin-left: 30px; font-size: 12px; color: #666;'>
+                            {data['count']} 块 · 平均 {round(avg_area, 2)} 亩
+                        </div>
                     </div>
                     """, unsafe_allow_html=True)
                 
                 st.divider()
                 
-                st.markdown("### 🌱 作物分布")
-                crop_types = {}
-                for f in farmlands:
-                    crop_types[f['crop_type']] = crop_types.get(f['crop_type'], 0) + 1
-                
-                for crop, count in crop_types.items():
+                st.markdown("### 📈 坐标范围")
+                all_coords = [coord for f in farmlands for coord in f['boundary_coords']]
+                if all_coords:
+                    min_y = min(c[0] for c in all_coords)
+                    max_y = max(c[0] for c in all_coords)
+                    min_x = min(c[1] for c in all_coords)
+                    max_x = max(c[1] for c in all_coords)
+                    
                     st.markdown(f"""
-                    <div style='display: flex; align-items: center; justify-content: space-between; 
-                               margin-bottom: 8px; padding: 8px 12px; background: #f8f9fa; border-radius: 8px;'>
-                        <span style='font-size: 13px; color: #333;'>🌾 {crop}</span>
-                        <span style='font-size: 13px; color: #666; font-weight: bold;'>{count} 块</span>
+                    <div style='background: #f8f9fa; padding: 12px; border-radius: 8px; font-size: 13px;'>
+                        <div style='display: flex; justify-content: space-between; margin-bottom: 5px;'>
+                            <span style='color: #666;'>X轴 (经度):</span>
+                            <span style='color: #333; font-weight: 500;'>{round(min_x, 6)} ~ {round(max_x, 6)}</span>
+                        </div>
+                        <div style='display: flex; justify-content: space-between;'>
+                            <span style='color: #666;'>Y轴 (纬度):</span>
+                            <span style='color: #333; font-weight: 500;'>{round(min_y, 6)} ~ {round(max_y, 6)}</span>
+                        </div>
                     </div>
                     """, unsafe_allow_html=True)
         else:
