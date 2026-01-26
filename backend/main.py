@@ -14,7 +14,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from database import create_user
+from database import create_user, init_data
+
+@app.on_event("startup")
+async def startup_event():
+    init_data()
 
 
 @app.post("/api/auth/register")

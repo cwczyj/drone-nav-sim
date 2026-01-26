@@ -41,3 +41,7 @@ Thumbs.db
 
 # Streamlit
 .streamlit/
+
+# Local data
+data/
+*.json
