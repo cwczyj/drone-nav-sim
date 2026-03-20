@@ -6,3 +6,7 @@ passlib==1.7.4
 bcrypt<5.0.0
 python-multipart==0.0.22
 email-validator==2.1.0
+numpy>=1.24.0
+shapely>=2.0.0
+torch>=2.0.0
+scipy>=1.11.0

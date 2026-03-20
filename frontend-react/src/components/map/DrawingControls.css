@@ -1,0 +1,75 @@
+.drawing-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1000;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mode-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.mode-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mode-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.drawing-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.drawing-control-btn {
+  width: 40px;
+  height: 40px;
+  border: 2px solid #e5e7eb;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.drawing-control-btn:hover:not(:disabled) {
+  border-color: #aa3bff;
+  background: #f5f3ff;
+}
+
+.drawing-control-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.drawing-control-btn.active {
+  border-color: #aa3bff;
+  background: #f5f3ff;
+  color: #aa3bff;
+}
+
+.drawing-control-btn svg {
+  width: 20px;
+  height: 20px;
+}

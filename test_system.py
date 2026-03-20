@@ -23,18 +23,7 @@ print()
 
 # 测试2: 检查前端依赖
 print("测试2: 检查前端依赖...")
-try:
-    import streamlit
-    import requests
-    import folium
-    try:
-        import streamlit_folium
-        print("✅ 前端依赖安装正常")
-    except ImportError:
-        print("⚠️ streamlit-folium未安装，可视化功能可能不可用")
-except ImportError as e:
-    print(f"❌ 前端依赖缺失: {e}")
-    sys.exit(1)
+print("✅ 前端使用 React，请确保已运行 'cd frontend-react && npm install'")
 
 print()
 

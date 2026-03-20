@@ -1,0 +1,47 @@
+.map-canvas-container {
+  width: 100%;
+  height: 600px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.map-canvas {
+  background: #fafafa;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.map-canvas .leaflet-container {
+  background: #fafafa;
+}
+
+.map-canvas .leaflet-pane {
+  z-index: 1;
+}
+
+.map-canvas .leaflet-grid-layer {
+  z-index: 0;
+}
+
+.map-canvas .leaflet-control-container {
+  z-index: 10;
+}
+
+@media (max-width: 1024px) {
+  .map-canvas-container {
+    height: 400px;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .map-canvas {
+    background: #1a1b26;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  .map-canvas .leaflet-container {
+    background: #1a1b26;
+  }
+}

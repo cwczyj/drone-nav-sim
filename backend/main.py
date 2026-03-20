@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from models import User, RegisterRequest, LoginRequest, TokenResponse, UserResponse
 from auth import get_current_user, get_password_hash, authenticate_user, create_access_token
 from farmland import router as farmland_router
+from path_planning.routes import router as path_planning_router
 
 app = FastAPI(title="农业无人机航线导航规划模拟系统")
 
@@ -70,6 +71,7 @@ async def get_me(current_user: User = Depends(get_current_user)):
 
 
 app.include_router(farmland_router)
+app.include_router(path_planning_router)
 
 @app.get("/")
 async def root():

@@ -1,0 +1,36 @@
+.leaflet-draw-toolbar a {
+  background-color: transparent !important;
+  border: none !important;
+}
+
+.leaflet-draw-toolbar a:hover {
+  background-color: transparent !important;
+}
+
+.leaflet-draw-actions {
+  background: white !important;
+  border-radius: 4px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+.leaflet-draw-actions li {
+  margin: 0 !important;
+}
+
+.leaflet-draw-actions a {
+  background-color: white !important;
+  border-left: 1px solid #e5e7eb !important;
+}
+
+.leaflet-draw-actions a:hover {
+  background-color: #f5f3ff !important;
+}
+
+.leaflet-draw-actions .leaflet-disabled {
+  background-color: #f3f4f6 !important;
+}
+
+.leaflet-editing-icon {
+  background-color: #aa3bff !important;
+  border-color: #fff !important;
+}

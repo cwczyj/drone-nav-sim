@@ -1,6 +1,6 @@
 # 农业无人机航线导航规划模拟系统
 
-一个基于 FastAPI + Streamlit 的农业无人机航线导航规划模拟系统，支持用户认证、农田管理和可视化功能。
+一个基于 FastAPI + React 的农业无人机航线导航规划模拟系统，支持用户认证、农田管理和可视化功能。
 
 ## 功能特性
 
@@ -19,9 +19,11 @@
 - **Pydantic**: 数据验证
 
 ### 前端
-- **Streamlit**: Web应用框架
-- **Folium**: 地图可视化
-- **Requests**: HTTP客户端
+- **React**: Web应用框架
+- **Vite**: 构建工具
+- **Ant Design**: UI组件库
+- **React Router**: 路由管理
+- **Axios**: HTTP客户端
 
 ## 快速开始
 
@@ -31,8 +33,8 @@
 cd backend
 pip install -r requirements.txt
 
-cd ../frontend
-pip install -r requirements.txt
+cd ../frontend-react
+npm install
 ```
 
 ### 2. 启动后端服务
@@ -47,11 +49,11 @@ uvicorn main:app --reload
 ### 3. 启动前端服务
 
 ```bash
-cd frontend
-streamlit run app.py
+cd frontend-react
+npm run dev
 ```
 
-前端服务将在 http://localhost:8501 启动
+前端服务将在 http://localhost:5173 启动
 
 ### 4. 一键启动（推荐）
 
@@ -65,13 +67,13 @@ python run_all.py
 
 ### 用户注册与登录
 
-1. 访问 http://localhost:8501
+1. 访问 http://localhost:5173
 2. 点击"注册"标签，填写用户名、邮箱和密码
 3. 注册完成后，切换到"登录"标签进行登录
 
 ### 农田管理
 
-1. 登录后，在侧边栏选择"农田管理"
+1. 登录后，点击侧边栏的"农田管理"
 2. 点击"创建新农田"，填写农田信息：
    - 农田名称
    - 面积（单位：亩）
@@ -88,7 +90,7 @@ python run_all.py
 
 ### 农田可视化
 
-1. 在侧边栏选择"农田可视化"
+1. 点击侧边栏的"农田可视化"
 2. 所有农田将在地图上以多边形形式显示
 3. 点击农田可查看详细信息
 4. 右侧显示农田统计信息
@@ -127,25 +129,25 @@ drone-nav-sim/
 │   ├── farmland.py         # 农田管理API
 │   ├── database.py         # 数据存储（内存）
 │   └── requirements.txt    # 后端依赖
-├── frontend/               # 前端代码
-│   ├── app.py              # Streamlit主应用
-│   ├── config.py           # 配置文件
-│   ├── auth_state.py       # 认证状态管理
-│   ├── pages/              # 页面组件
-│   │   ├── login.py        # 登录/注册页面
-│   │   ├── farmland_list.py# 农田管理页面
-│   │   └── visualization.py# 可视化页面
-│   └── requirements.txt    # 前端依赖
+├── frontend-react/         # React前端代码
+│   ├── src/                # 源代码
+│   │   ├── components/     # React组件
+│   │   ├── pages/          # 页面组件
+│   │   ├── services/       # API服务
+│   │   └── App.tsx         # 主应用组件
+│   ├── package.json        # 依赖配置
+│   └── vite.config.ts      # Vite配置
 ├── run_all.py              # 一键启动脚本
 └── README.md               # 项目文档
 ```
 
 ## 注意事项
 
-1. 本系统使用内存存储，重启后数据会丢失
+1. 本系统使用JSON文件存储，数据会持久化到本地文件
 2. 默认JWT token有效期为24小时
 3. 生产环境请修改 `SECRET_KEY`
 4. 建议使用HTTPS部署以确保安全性
+5. React开发服务器默认运行在5173端口
 
 ## 后续扩展
 

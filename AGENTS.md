@@ -7,7 +7,7 @@ This file provides guidance for agentic coding assistants working on this reposi
 ### Installation
 ```bash
 cd backend && pip install -r requirements.txt
-cd frontend && pip install -r requirements.txt
+cd frontend-react && npm install
 ```
 
 ### Running the Application
@@ -19,7 +19,7 @@ python run_all.py
 cd backend && uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 # Frontend only
-cd frontend && streamlit run app.py --server.port 8501
+cd frontend-react && npm run dev
 ```
 
 ### Testing
@@ -34,7 +34,7 @@ python -c "from test_system import test_function_name; test_function_name()"
 ### Service Endpoints
 - Backend API: http://localhost:8000
 - API Docs: http://localhost:8000/docs
-- Frontend UI: http://localhost:8501
+- Frontend UI: http://localhost:5173
 
 ## Code Style Guidelines
 
@@ -98,12 +98,13 @@ raise HTTPException(
 - Use `model_dump()` instead of `dict()` (Pydantic v2)
 
 ### Streamlit/Frontend Patterns
-- Manage state in `st.session_state` through a dedicated manager class (e.g., `AuthManager`)
-- Use `@staticmethod` for utility methods in manager classes
-- Store API endpoints in `config.py`
-- Use `use_container_width=True` for consistent button sizing
-- Check authentication before showing protected content: `AuthManager.check_auth()`
-- Import pages conditionally to avoid unnecessary loading
+- Use React functional components with hooks for state management
+- Use Axios for HTTP requests to backend API
+- Use React Router for page navigation
+- Use Ant Design components for UI elements
+- Store API base URL in environment variables or config file
+- Use TypeScript for type safety
+- Check authentication status before rendering protected routes
 
 ### File Organization
 ```
@@ -113,11 +114,17 @@ backend/
   ├── auth.py          # Authentication logic
   ├── database.py      # Data access layer (in-memory dicts)
   └── farmland.py      # Farmland CRUD routes
-frontend/
-  ├── app.py           # Streamlit main app, page routing
-  ├── config.py        # API endpoint configuration
-  ├── auth_state.py    # AuthManager class
-  └── pages/           # Page components
+frontend-react/
+  ├── src/
+  │   ├── App.tsx          # Main app component
+  │   ├── main.tsx         # Entry point
+  │   ├── components/      # Reusable components
+  │   │   └── ...
+  │   ├── pages/           # Page components
+  │   │   └── ...
+  │   └── services/        # API services
+  │       └── api.ts
+  └── package.json
 ```
 
 ### Security
