@@ -13,8 +13,9 @@ module.exports = {
   transformIgnorePatterns: [
     'node_modules/(?!(react-leaflet|leaflet)/)',
   ],
-  globals: {
-    TextEncoder: { encoding: 'utf-8', encode: (str) => Buffer.from(str, 'utf-8') },
-    TextDecoder: { decode: (buf) => Buffer.from(buf).toString('utf-8') },
-  },
+  testMatch: ['**/__tests__/**/*.test.tsx', '**/?(*.)+(spec|test).tsx'],
+  testTimeout: 10000,
+  clearMocks: true,
+  resetMocks: true,
+  restoreMocks: true,
 };

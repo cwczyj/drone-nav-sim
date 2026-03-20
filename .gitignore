@@ -19,29 +19,118 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+*.manifest
+*.spec
 
 # Virtual Environment
 venv/
 ENV/
 env/
+.venv/
 
 # IDE
-.vscode/
+.vscode/*
+!.vscode/extensions.json
 .idea/
 *.swp
 *.swo
+*~
+.project
+.classpath
+.settings/
 
 # OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 
 # Logs
 *.log
-/tmp/backend.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Frontend - React/Vite
+node_modules/
+dist/
+dist-ssr/
+*.local
+coverage/
+.nyc_output/
+
+# Frontend - Build
+frontend-react/node_modules/
+frontend-react/dist/
+frontend-react/build/
+
+# Backend - Build
+backend/dist/
+backend/build/
 
 # Streamlit
 .streamlit/
 
-# Local data
-data/
-*.json
+# Local data (keep data/ directory but ignore generated files)
+# data/ - Uncomment if you want to ignore all data files
+# *.json - Uncomment if you want to ignore all JSON files
+
+# PyTorch models (if trained locally)
+*.pth
+!backend/path_planning/models/*.pth
+
+# SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Ruff
+.ruff_cache/
+
+# Black
+.black
+
+# Linting
+.eslintcache
+*.eslintcache
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+.temp/
+
+# Cache directories
+.cache/
+.parcel-cache/
+
+# Lock files (keep package-lock.json and requirements.txt for reproducibility)
+# yarn.lock
+# pnpm-lock.yaml
+# package-lock.json

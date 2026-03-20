@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
-import { MapContainer, TileLayer, Polygon, Polyline, CircleMarker, Popup } from 'react-leaflet';
+import { MapContainer, Polygon, Polyline, CircleMarker, TileLayer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 import { pathPlanningAPI } from '../../services/api';
 import type { PathPlanningResponse } from '../../types';
 import styles from './PathVisualization.module.css';
@@ -11,29 +12,50 @@ interface PathVisualizationProps {
   swathWidth?: number;
   useDl?: boolean;
   onPathGenerated?: (data: PathPlanningResponse) => void;
+  // 所有农田模式下的额外属性
+  allFarmlandsMode?: boolean;
+  allPathsData?: import('../../types').AllFarmlandsPathResponse;
+  mergeFarmlands?: boolean;
 }
 
-interface Waypoint {
-  lat: number;
-  lng: number;
-  index: number;
-}
-
-// Convert canvas coordinates (0-500) to lat/lng for visualization
-const convertToLatLng = (coords: number[][], center: [number, number]): Waypoint[] => {
-  const scale = 0.001; // Adjust scale for visualization
-  return coords.map((point, index) => ({
-    lat: center[0] + (point[1] - 250) * scale,
-    lng: center[1] + (point[0] - 250) * scale,
-    index,
-  }));
+// Calculate center point from boundary coordinates for map view
+const getCenter = (boundaryCoords: number[][]): [number, number] => {
+  if (boundaryCoords.length === 0) return [0, 0];
+  const avgX = boundaryCoords.reduce((sum, coord) => sum + coord[0], 0) / boundaryCoords.length;
+  const avgY = boundaryCoords.reduce((sum, coord) => sum + coord[1], 0) / boundaryCoords.length;
+  return [avgY, avgX]; // Note: Leaflet uses [lat, lng] = [y, x]
 };
 
-// Calculate center point from boundary coordinates
-const getCenter = (boundaryCoords: number[][]): [number, number] => {
-  const avgLat = boundaryCoords.reduce((sum, coord) => sum + coord[0], 0) / boundaryCoords.length;
-  const avgLng = boundaryCoords.reduce((sum, coord) => sum + coord[1], 0) / boundaryCoords.length;
-  return [avgLat, avgLng];
+// Calculate bounds from boundary coordinates
+const getBounds = (boundaryCoords: number[][]): [[number, number], [number, number]] => {
+  if (boundaryCoords.length === 0) {
+    return [[-1, -1], [1, 1]];
+  }
+  const xs = boundaryCoords.map(c => c[0]);
+  const ys = boundaryCoords.map(c => c[1]);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  // Add some padding
+  const padding = Math.max(maxX - minX, maxY - minY) * 0.1;
+  return [
+    [minY - padding, minX - padding],
+    [maxY + padding, maxX + padding]
+  ];
+};
+
+// Calculate bounds from view_bounds (backend provided)
+const getBoundsFromViewBounds = (viewBounds: {
+  min_x: number;
+  max_x: number;
+  min_y: number;
+  max_y: number;
+}): [[number, number], [number, number]] => {
+  return [
+    [viewBounds.min_y, viewBounds.min_x],
+    [viewBounds.max_y, viewBounds.max_x]
+  ];
 };
 
 export default function PathVisualization({
@@ -42,21 +64,29 @@ export default function PathVisualization({
   swathWidth = 2,
   useDl = false,
   onPathGenerated,
+  allFarmlandsMode = false,
+  allPathsData,
+  mergeFarmlands = false,
 }: PathVisualizationProps) {
   const [pathData, setPathData] = useState<PathPlanningResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const center = getCenter(boundaryCoords);
+  
+  // 在合并模式下使用后端返回的 view_bounds 计算缩放级别
+  const bounds = mergeFarmlands && allPathsData?.view_bounds
+    ? getBoundsFromViewBounds(allPathsData.view_bounds)
+    : getBounds(boundaryCoords);
 
   const fetchPath = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const response = await pathPlanningAPI.generate({
-        farmlandId,
-        swathWidth,
-        useDl,
+        farmland_id: farmlandId,
+        swath_width: swathWidth,
+        use_dl: useDl,
       });
       setPathData(response.data);
       onPathGenerated?.(response.data);
@@ -69,17 +99,25 @@ export default function PathVisualization({
   }, [farmlandId, swathWidth, useDl, onPathGenerated]);
 
   useEffect(() => {
-    if (farmlandId) {
+    if (farmlandId && !allFarmlandsMode) {
       fetchPath();
     }
-  }, [farmlandId, fetchPath]);
+  }, [farmlandId, fetchPath, allFarmlandsMode]);
 
-  const polygonPositions: [number, number][] = boundaryCoords.map((coord) => [coord[0], coord[1]]);
+  // Polygon positions: Leaflet uses [lat, lng] = [y, x]
+  const polygonPositions: [number, number][] = boundaryCoords.map((coord) => [coord[1], coord[0]]);
 
-  const pathWaypoints = pathData?.path ? convertToLatLng(pathData.path, center) : [];
-  const pathPositions: [number, number][] = pathWaypoints.map((wp) => [wp.lat, wp.lng]);
+  // Path positions: convert waypoints to [lat, lng] format
+  const pathPositions: [number, number][] = allFarmlandsMode && allPathsData?.merged_path
+    ? allPathsData.merged_path.map((wp) => [wp[1], wp[0]])
+    : pathData?.waypoints 
+      ? pathData.waypoints.map((wp) => [wp[1], wp[0]]) 
+      : [];
 
-  if (loading) {
+  // 在合并模式下，不显示 loading，直接使用返回的数据
+  const showLoading = loading && !allFarmlandsMode;
+
+  if (showLoading) {
     return (
       <div className={styles['visualization-container']}>
         <div className={styles['loading-state']} role="status">
@@ -107,30 +145,49 @@ export default function PathVisualization({
   return (
     <div className={styles['visualization-container']}>
       <MapContainer
-        center={center}
-        zoom={15}
+        crs={L.CRS.Simple}
+        bounds={bounds}
+        style={{ width: '100%', height: '100%' }}
+        zoomControl={true}
         scrollWheelZoom={true}
         className={styles['map-container']}
-        zoomControl={true}
         data-testid="map-container"
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution=''
+          url=''
         />
 
-        {/* Farmland boundary polygon */}
-        <Polygon
-          positions={polygonPositions}
-          pathOptions={{
-            color: 'var(--accent)',
-            fillColor: 'var(--accent)',
-            fillOpacity: 0.2,
-            weight: 2,
-          }}
-        >
-          <Popup>农田边界</Popup>
-        </Polygon>
+        {/* Farmland boundary polygons */}
+        {allFarmlandsMode && allPathsData?.farmland_boundaries ? (
+          // 在合并模式下，显示每个农田的边界（不同颜色）
+          allPathsData.farmland_boundaries.map((boundary, index) => {
+            const positions: [number, number][] = boundary.coords.map((coord) => [coord[1], coord[0]]);
+            const colors = ['#aa3bff', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444'];
+            return (
+              <Polygon
+                key={boundary.farmland_id}
+                positions={positions}
+                pathOptions={{
+                  color: colors[index % colors.length],
+                  fillColor: colors[index % colors.length],
+                  fillOpacity: 0.15,
+                  weight: 2,
+                }}
+              />
+            );
+          })
+        ) : (
+          <Polygon
+            positions={polygonPositions}
+            pathOptions={{
+              color: '#aa3bff',
+              fillColor: '#aa3bff',
+              fillOpacity: 0.2,
+              weight: 2,
+            }}
+          />
+        )}
 
         {/* Flight path polyline */}
         {pathPositions.length > 0 && (
@@ -146,14 +203,14 @@ export default function PathVisualization({
             />
 
             {/* Waypoints as circles */}
-            {pathWaypoints.map((waypoint, index) => {
+            {pathPositions.map((pos, index) => {
               const isStart = index === 0;
-              const isEnd = index === pathWaypoints.length - 1;
+              const isEnd = index === pathPositions.length - 1;
 
               return (
                 <CircleMarker
-                  key={`waypoint-${waypoint.index}`}
-                  center={[waypoint.lat, waypoint.lng]}
+                  key={`waypoint-${index}`}
+                  center={pos}
                   pathOptions={{
                     color: isStart ? '#22c55e' : isEnd ? '#ef4444' : '#3b82f6',
                     fillColor: isStart ? '#22c55e' : isEnd ? '#ef4444' : '#3b82f6',
@@ -161,11 +218,7 @@ export default function PathVisualization({
                     weight: 2,
                   }}
                   radius={isStart || isEnd ? 8 : 5}
-                >
-                  <Popup>
-                    {isStart ? '起点' : isEnd ? '终点' : `航点 ${index + 1}`}
-                  </Popup>
-                </CircleMarker>
+                />
               );
             })}
           </>

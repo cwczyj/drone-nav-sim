@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '../../test-utils';
 import PathVisualization from './PathVisualization';
 import { pathPlanningAPI } from '../../services/api';
 

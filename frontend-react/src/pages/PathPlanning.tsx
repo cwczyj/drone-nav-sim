@@ -1,19 +1,26 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Farmland, PathPlanningResponse } from '../types';
-import { farmlandAPI } from '../services/api';
+import { Card, Form, Select, InputNumber, Switch, Button, Alert, Empty, Spin, Row, Col, Typography, Radio, Space } from 'antd';
+import { RocketOutlined, DownloadOutlined, SettingOutlined, EnvironmentOutlined, HomeOutlined, ClusterOutlined } from '@ant-design/icons';
+import type { Farmland, PathPlanningResponse, AllFarmlandsPathResponse, SingleFarmlandPath } from '../types';
+import { farmlandAPI, pathPlanningAPI } from '../services/api';
 import PathVisualization from '../components/path/PathVisualization';
 import PathInfo from '../components/path/PathInfo';
+
+const { Title } = Typography;
 
 export default function PathPlanning() {
   const [farmlands, setFarmlands] = useState<Farmland[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [pathMode, setPathMode] = useState<'single' | 'all'>('single');
+  const [mergeFarmlands, setMergeFarmlands] = useState<boolean>(false);
   const [selectedFarmlandId, setSelectedFarmlandId] = useState<string>('');
   const [swathWidth, setSwathWidth] = useState<number>(10);
   const [useDl, setUseDl] = useState<boolean>(false);
 
   const [pathData, setPathData] = useState<PathPlanningResponse | null>(null);
+  const [allPathsData, setAllPathsData] = useState<AllFarmlandsPathResponse | null>(null);
   const [showVisualization, setShowVisualization] = useState(false);
 
   useEffect(() => {
@@ -33,9 +40,33 @@ export default function PathPlanning() {
     fetchFarmlands();
   }, []);
 
+  const handleGenerateAllPaths = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const response = await pathPlanningAPI.generateAll({
+        swath_width: swathWidth,
+        use_dl: useDl,
+        merge_farmlands: mergeFarmlands,
+      });
+      setAllPathsData(response.data);
+      setPathData(null);
+      setShowVisualization(true);
+    } catch (err) {
+      setError('生成所有农田航线失败');
+      console.error('Failed to generate paths for all farmlands:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const selectedFarmland = farmlands.find((f) => f.id === selectedFarmlandId);
 
   const handleGeneratePath = () => {
+    if (pathMode === 'all') {
+      handleGenerateAllPaths();
+      return;
+    }
     if (!selectedFarmlandId) {
       setError('请先选择农田');
       return;
@@ -43,6 +74,7 @@ export default function PathPlanning() {
     setError(null);
     setShowVisualization(true);
     setPathData(null);
+    setAllPathsData(null);
   };
 
   const handlePathGenerated = useCallback((data: PathPlanningResponse) => {
@@ -50,122 +82,169 @@ export default function PathPlanning() {
   }, []);
 
   const handleExportJson = () => {
-    if (!pathData?.path) return;
-
-    const json = JSON.stringify(pathData.path, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `flight-path-${selectedFarmlandId}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    if (allPathsData) {
+      // 导出所有农田的航线
+      const json = JSON.stringify(allPathsData, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `flight-paths-all-farmlands.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } else if (pathData?.waypoints) {
+      const json = JSON.stringify(pathData.waypoints, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `flight-path-${selectedFarmlandId}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600"></div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}>
+        <Spin size="large" tip="加载中..." />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">航线规划</h1>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Title level={2} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <EnvironmentOutlined />
+          航线规划
+        </Title>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error}
-        </div>
+        <Alert
+          message={error}
+          type="error"
+          showIcon
+          closable
+          onClose={() => setError(null)}
+          style={{ borderRadius: 8 }}
+        />
       )}
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">规划配置</h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
-              选择农田
-            </label>
-            <select
-              value={selectedFarmlandId}
+      <Card
+        title="规划配置"
+        extra={<SettingOutlined />}
+        bordered
+        style={{ borderRadius: 12 }}
+      >
+        <Form layout="inline" style={{ gap: '16px', flexWrap: 'wrap' }}>
+          <Form.Item label="规划模式" style={{ flex: '1 1 200px' }}>
+            <Radio.Group
+              value={pathMode}
               onChange={(e) => {
-                setSelectedFarmlandId(e.target.value);
+                setPathMode(e.target.value);
                 setShowVisualization(false);
                 setPathData(null);
+                setAllPathsData(null);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              optionType="button"
+              buttonStyle="solid"
             >
-              <option value="">请选择农田</option>
-              {farmlands.map((farmland) => (
-                <option key={farmland.id} value={farmland.id}>
-                  {farmland.name} ({farmland.area.toFixed(1)} 亩)
-                </option>
-              ))}
-            </select>
-          </div>
+              <Radio.Button value="single">
+                <EnvironmentOutlined /> 单块农田
+              </Radio.Button>
+              <Radio.Button value="all">
+                <ClusterOutlined /> 所有农田
+              </Radio.Button>
+            </Radio.Group>
+          </Form.Item>
 
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
-              行宽 (米)
-            </label>
-            <input
-              type="number"
-              value={swathWidth}
-              onChange={(e) => setSwathWidth(Number(e.target.value))}
+          {pathMode === 'all' && (
+            <Form.Item label="合并模式" style={{ flex: '1 1 200px' }}>
+              <Switch
+                checked={mergeFarmlands}
+                onChange={(checked) => {
+                  setMergeFarmlands(checked);
+                  setShowVisualization(false);
+                  setAllPathsData(null);
+                }}
+                checkedChildren="合并"
+                unCheckedChildren="分开"
+                title="合并模式：将所有农田作为一个整体区域生成航线，包含农田之间的飞行路径"
+              />
+            </Form.Item>
+          )}
+
+          {pathMode === 'single' && (
+            <Form.Item label="选择农田" style={{ flex: '1 1 200px' }}>
+              <Select
+                placeholder="请选择农田"
+                options={farmlands.map((f) => ({
+                  value: f.id,
+                  label: `${f.name} (${f.area.toFixed(1)} 亩)`,
+                }))}
+                value={selectedFarmlandId}
+                onChange={(value) => {
+                  setSelectedFarmlandId(value);
+                  setShowVisualization(false);
+                  setPathData(null);
+                }}
+                style={{ width: '100%', minWidth: '200px' }}
+                allowClear
+              />
+            </Form.Item>
+          )}
+
+          <Form.Item label="行宽 (米)" style={{ flex: '1 1 150px' }}>
+            <InputNumber
               min={1}
               max={100}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              value={swathWidth}
+              onChange={(value) => setSwathWidth(Number(value))}
+              style={{ width: '100%' }}
             />
-          </div>
+          </Form.Item>
 
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
-              深度学习优化
-            </label>
-            <div className="flex items-center h-[42px]">
-              <label className="flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={useDl}
-                  onChange={(e) => setUseDl(e.target.checked)}
-                  className="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                />
-                <span className="ml-2 text-sm text-gray-600">启用 DL 优化</span>
-              </label>
-            </div>
-          </div>
+          <Form.Item label="深度学习优化" style={{ flex: '1 1 150px' }}>
+            <Switch
+              checked={useDl}
+              onChange={(checked) => setUseDl(checked)}
+              checkedChildren="开"
+              unCheckedChildren="关"
+            />
+          </Form.Item>
 
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
-              &nbsp;
-            </label>
-            <button
+          <Form.Item style={{ flex: '1 1 auto' }}>
+            <Button
+              type="primary"
+              icon={<RocketOutlined />}
               onClick={handleGeneratePath}
-              disabled={!selectedFarmlandId}
-              className="w-full px-4 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              disabled={pathMode === 'single' && !selectedFarmlandId}
+              block
             >
-              生成航线
-            </button>
-          </div>
-        </div>
-      </div>
+              {pathMode === 'all' 
+                ? (mergeFarmlands ? '生成合并航线 (所有农田)' : '生成所有农田航线') 
+                : '生成航线'}
+            </Button>
+          </Form.Item>
+        </Form>
+      </Card>
 
-      {selectedFarmland && showVisualization && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="p-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  {selectedFarmland.name} - 航线可视化
-                </h2>
-              </div>
-              <div className="h-[500px]">
+      {pathMode === 'single' && selectedFarmland && showVisualization && (
+        <Row gutter={[16, 16]}>
+          <Col xs={24} lg={16}>
+            <Card
+              title={`${selectedFarmland.name} - 航线可视化`}
+              bordered
+              style={{ borderRadius: 12 }}
+              bodyStyle={{ padding: 0 }}
+            >
+              <div style={{ height: '500px' }}>
                 <PathVisualization
                   farmlandId={selectedFarmlandId}
                   boundaryCoords={selectedFarmland.boundary_coords}
@@ -174,72 +253,162 @@ export default function PathPlanning() {
                   onPathGenerated={handlePathGenerated}
                 />
               </div>
-            </div>
-          </div>
+            </Card>
+          </Col>
 
-          <div className="space-y-6">
-            <PathInfo
-              pathStats={
-                pathData
-                  ? {
-                      totalDistance: pathData.totalDistance,
-                      waypointCount: pathData.path.length,
-                      estimatedTime: pathData.estimatedTime,
-                      swathWidth,
-                    }
-                  : null
-              }
-            />
+          <Col xs={24} lg={8}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <PathInfo
+                pathStats={
+                  pathData
+                    ? {
+                        totalDistance: pathData.total_distance,
+                        waypointCount: pathData.waypoints.length,
+                        estimatedTime: pathData.estimated_time,
+                        swathWidth,
+                      }
+                    : null
+                }
+              />
 
-            {pathData && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  导出选项
-                </h3>
-                <button
-                  onClick={handleExportJson}
-                  className="w-full px-4 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+              {pathData && (
+                <Card
+                  title="导出选项"
+                  bordered
+                  style={{ borderRadius: 12 }}
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+                  <Button
+                    icon={<DownloadOutlined />}
+                    onClick={handleExportJson}
+                    block
+                    size="large"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                    />
-                  </svg>
-                  导出航点 (JSON)
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+                    导出航点 (JSON)
+                  </Button>
+                </Card>
+              )}
+            </div>
+          </Col>
+        </Row>
       )}
 
-      {!selectedFarmlandId && farmlands.length > 0 && (
-        <div className="bg-gray-50 rounded-xl border border-gray-200 p-8 text-center">
-          <div className="text-gray-400 text-5xl mb-4">🗺️</div>
-          <p className="text-gray-600">请选择一个农田开始规划航线</p>
-        </div>
+      {pathMode === 'all' && showVisualization && allPathsData && (
+        <Row gutter={[16, 16]}>
+          <Col xs={24} lg={16}>
+            <Card
+              title={`所有农田航线规划 - ${mergeFarmlands ? '合并模式' : '分开模式'}`}
+              bordered
+              style={{ borderRadius: 12 }}
+              bodyStyle={{ padding: 0 }}
+            >
+              <div style={{ height: '500px' }}>
+                <PathVisualization
+                  farmlandId=""
+                  boundaryCoords={
+                    mergeFarmlands && allPathsData.farmland_boundaries 
+                      ? allPathsData.farmland_boundaries.flatMap(b => b.coords)
+                      : farmlands.length > 0 ? farmlands[0].boundary_coords : []
+                  }
+                  swathWidth={swathWidth}
+                  useDl={useDl}
+                  onPathGenerated={handlePathGenerated}
+                  allFarmlandsMode={true}
+                  allPathsData={allPathsData}
+                  mergeFarmlands={mergeFarmlands}
+                />
+              </div>
+            </Card>
+          </Col>
+
+          <Col xs={24} lg={8}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <Card
+                title="统计信息"
+                bordered
+                style={{ borderRadius: 12 }}
+              >
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <div>
+                    <strong>农田数量:</strong> {allPathsData.farmlands.length} 块
+                  </div>
+                  <div>
+                    <strong>总航程:</strong> {allPathsData.total_distance.toFixed(2)} 米
+                  </div>
+                  <div>
+                    <strong>总预计时间:</strong> {allPathsData.total_estimated_time.toFixed(2)} 分钟
+                  </div>
+                  <div>
+                    <strong>总转弯次数:</strong> {allPathsData.total_turn_count}
+                  </div>
+                  {mergeFarmlands && (
+                    <Alert
+                      message="合并模式"
+                      description="已将多个农田合并为一个整体区域生成航线，包含农田之间的飞行连接路径"
+                      type="info"
+                      showIcon
+                    />
+                  )}
+                </Space>
+              </Card>
+
+              <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid #d9d9d9' }}>
+                      <th style={{ padding: '8px', textAlign: 'left' }}>农田</th>
+                      <th style={{ padding: '8px', textAlign: 'right' }}>距离 (米)</th>
+                      <th style={{ padding: '8px', textAlign: 'right' }}>时间 (分)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allPathsData.farmlands.map((fp: SingleFarmlandPath) => (
+                      <tr key={fp.farmland_id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                        <td style={{ padding: '8px' }}>{fp.farmland_name}</td>
+                        <td style={{ padding: '8px', textAlign: 'right' }}>{fp.total_distance.toFixed(1)}</td>
+                        <td style={{ padding: '8px', textAlign: 'right' }}>{fp.estimated_time.toFixed(1)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <Card
+                title="导出选项"
+                bordered
+                style={{ borderRadius: 12 }}
+              >
+                <Button
+                  icon={<DownloadOutlined />}
+                  onClick={handleExportJson}
+                  block
+                  size="large"
+                >
+                  导出所有航点 (JSON)
+                </Button>
+              </Card>
+            </div>
+          </Col>
+        </Row>
+      )}
+
+      {pathMode === 'single' && !selectedFarmlandId && farmlands.length > 0 && (
+        <Empty
+          description="请选择一个农田开始规划航线"
+          image={<HomeOutlined style={{ fontSize: '64px', color: '#d9d9d9' }} />}
+          style={{ padding: '48px 24px' }}
+        />
       )}
 
       {farmlands.length === 0 && !loading && (
-        <div className="bg-gray-50 rounded-xl border border-gray-200 p-8 text-center">
-          <div className="text-gray-400 text-5xl mb-4">🌾</div>
-          <p className="text-gray-600 mb-4">暂无农田数据</p>
-          <a
-            href="/farmlands"
-            className="inline-block px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-          >
+        <Empty
+          description="暂无农田数据"
+          image={<HomeOutlined style={{ fontSize: '64px', color: '#d9d9d9' }} />}
+          style={{ padding: '48px 24px' }}
+        >
+          <Button type="primary" href="/farmlands">
             创建农田
-          </a>
-        </div>
+          </Button>
+        </Empty>
       )}
     </div>
   );

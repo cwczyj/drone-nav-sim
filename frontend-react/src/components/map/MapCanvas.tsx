@@ -26,26 +26,46 @@ export interface MapCanvasProps {
   onPolygonCreate?: (polygon: PolygonData) => void;
   onPolygonEdit?: (polygon: PolygonData) => void;
   editable?: boolean;
+  showGrid?: boolean;
 }
 
 const generateId = (): string => {
   return `polygon-${Math.random().toString(36).substring(2, 9)}`;
 };
 
+// Generate distinct colors for polygons based on their position
+const generateColorForPolygon = (coordinates: [number, number][], index: number): { color: string; fillColor: string } => {
+  // Calculate centroid of the polygon
+  const centerX = coordinates.reduce((sum, [x]) => sum + x, 0) / coordinates.length;
+  const centerY = coordinates.reduce((sum, [, y]) => sum + y, 0) / coordinates.length;
+  
+  // Use HSL color space to generate distinct colors
+  // Hue is based on position to ensure nearby polygons have different colors
+  const hue = (centerX * 0.5 + centerY * 0.5 + index * 35) % 360;
+  const saturation = 70 + (index % 3) * 10; // 70-90%
+  const lightness = 45 + (index % 4) * 5;   // 45-60%
+  
+  return {
+    color: `hsl(${hue}, ${saturation}%, ${lightness}%)`,
+    fillColor: `hsl(${hue}, ${saturation}%, ${lightness + 10}%)`,
+  };
+};
+
 function GridOverlay() {
+  const gridSize = 1000;
   const gridLines: [number, number][][] = [];
   
-  for (let x = 0; x <= 500; x += 50) {
+  for (let x = 0; x <= gridSize; x += 100) {
     gridLines.push([
       [x, 0],
-      [x, 500]
+      [x, gridSize]
     ]);
   }
   
-  for (let y = 0; y <= 500; y += 50) {
+  for (let y = 0; y <= gridSize; y += 100) {
     gridLines.push([
       [0, y],
-      [500, y]
+      [gridSize, y]
     ]);
   }
 
@@ -71,9 +91,9 @@ function GridOverlay() {
 function BoundaryLines() {
   const boundary: [number, number][] = [
     [0, 0],
-    [500, 0],
-    [500, 500],
-    [0, 500],
+    [1000, 0],
+    [1000, 1000],
+    [0, 1000],
     [0, 0]
   ];
 
@@ -95,16 +115,23 @@ export default function MapCanvas({
   editable = false,
   onPolygonCreate,
   onPolygonEdit,
-}: Pick<MapCanvasProps, 'polygons' | 'editable' | 'onPolygonCreate' | 'onPolygonEdit'>) {
+  showGrid = true,
+}: Pick<MapCanvasProps, 'polygons' | 'editable' | 'onPolygonCreate' | 'onPolygonEdit' | 'showGrid'>) {
   const mapRef = useRef<L.Map | null>(null);
   const [drawingMode, setDrawingMode] = useState<DrawingMode>('view');
   const [currentPolygon, setCurrentPolygon] = useState<PolygonData | null>(null);
 
   const crsSimple = L.CRS.Simple;
 
+  // Extended bounds to allow zooming out further
+  const extendedBounds: L.LatLngBoundsExpression = [
+    [-200, -200],
+    [1200, 1200]
+  ];
+
   const bounds: L.LatLngBoundsExpression = [
     [0, 0],
-    [500, 500]
+    [1000, 1000]
   ];
 
   useEffect(() => {
@@ -112,10 +139,11 @@ export default function MapCanvas({
     if (map) {
       map.fitBounds(bounds);
       
-      if (!editable || drawingMode === 'view') {
-        map.scrollWheelZoom.disable();
-      } else {
+      // Enable scroll wheel zoom when not in view mode
+      if (editable && drawingMode !== 'view') {
         map.scrollWheelZoom.enable();
+      } else {
+        map.scrollWheelZoom.disable();
       }
     }
   }, [editable, drawingMode]);
@@ -159,31 +187,41 @@ export default function MapCanvas({
       <MapContainer
         ref={mapRef}
         crs={crsSimple}
-        bounds={bounds}
+        bounds={extendedBounds}
+        maxBounds={extendedBounds}
+        maxBoundsViscosity={0.8}
+        minZoom={-2}
+        maxZoom={5}
+        zoom={1}
         style={{ width: '100%', height: '100%' }}
-        zoomControl={editable && drawingMode === 'view'}
-        scrollWheelZoom={editable && drawingMode === 'view'}
-        doubleClickZoom={editable && drawingMode === 'view'}
-        dragging={editable}
+        zoomControl={true}
+        scrollWheelZoom={editable && drawingMode !== 'view'}
+        doubleClickZoom={editable && drawingMode !== 'view'}
+        dragging={true}
         className="map-canvas"
-        maxBounds={bounds}
-        maxBoundsViscosity={1.0}
       >
-        <GridOverlay />
-        <BoundaryLines />
+        {showGrid && <GridOverlay />}
+        {showGrid && <BoundaryLines />}
         
-        {displayPolygons.map((polygon) => (
-          <Polygon
-            key={polygon.id}
-            positions={polygon.coordinates.map(([lng, lat]) => [lat, lng])}
-            pathOptions={{
-              color: polygon.color || '#aa3bff',
-              fillColor: polygon.fillColor || '#aa3bff',
-              fillOpacity: polygon.fillOpacity || 0.2,
-              weight: 2,
-            }}
-          />
-        ))}
+        {displayPolygons.map((polygon, index) => {
+          // Auto-generate color if not provided
+          const colorConfig = polygon.color 
+            ? { color: polygon.color, fillColor: polygon.fillColor || polygon.color }
+            : generateColorForPolygon(polygon.coordinates, index);
+          
+          return (
+            <Polygon
+              key={polygon.id}
+              positions={polygon.coordinates.map(([lng, lat]) => [lat, lng])}
+              pathOptions={{
+                color: colorConfig.color,
+                fillColor: colorConfig.fillColor,
+                fillOpacity: polygon.fillOpacity || 0.2,
+                weight: 2,
+              }}
+            />
+          );
+        })}
         
         {editable && drawingMode !== 'view' && (
           <PolygonDrawing

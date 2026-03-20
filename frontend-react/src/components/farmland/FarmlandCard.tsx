@@ -1,4 +1,6 @@
 import React from 'react';
+import { Card, Tag, Typography, Space, Button, theme } from 'antd';
+import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { Farmland } from '../../types';
 
 interface FarmlandCardProps {
@@ -8,14 +10,16 @@ interface FarmlandCardProps {
   onDelete?: (farmland: Farmland) => void;
 }
 
-const CROP_COLORS: Record<string, { bg: string; border: string }> = {
-  '水稻': { bg: 'bg-green-100', border: 'border-green-500' },
-  '小麦': { bg: 'bg-yellow-100', border: 'border-yellow-500' },
-  '玉米': { bg: 'bg-orange-100', border: 'border-orange-500' },
-  '大豆': { bg: 'bg-lime-100', border: 'border-lime-500' },
-  '棉花': { bg: 'bg-pink-100', border: 'border-pink-500' },
-  '油菜': { bg: 'bg-amber-100', border: 'border-amber-500' },
-  '其他': { bg: 'bg-gray-100', border: 'border-gray-500' },
+const { Title, Text } = Typography;
+
+const CROP_COLORS: Record<string, string> = {
+  '水稻': '#52c41a',
+  '小麦': '#faad14',
+  '玉米': '#fa8c16',
+  '大豆': '#a0d911',
+  '棉花': '#eb2f96',
+  '油菜': '#faad14',
+  '其他': '#8c8c8c',
 };
 
 const formatDate = (dateString: string): string => {
@@ -28,7 +32,8 @@ const formatDate = (dateString: string): string => {
 };
 
 export const FarmlandCard: React.FC<FarmlandCardProps> = ({ farmland, onClick, onEdit, onDelete }) => {
-  const colors = CROP_COLORS[farmland.crop_type] || CROP_COLORS['其他'];
+  const { token } = theme.useToken();
+  const cropColor = CROP_COLORS[farmland.crop_type] || CROP_COLORS['其他'];
 
   const handleEditClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -41,85 +46,63 @@ export const FarmlandCard: React.FC<FarmlandCardProps> = ({ farmland, onClick, o
   };
 
   return (
-    <div
+    <Card
+      hoverable
       onClick={() => onClick(farmland)}
-      className={`${colors.bg} ${colors.border} border-2 rounded-lg p-4 cursor-pointer hover:shadow-lg transition-shadow duration-200`}
-      role="button"
-      tabIndex={0}
-      onKeyPress={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          onClick(farmland);
-        }
-      }}
+      style={{ cursor: 'pointer', height: '100%' }}
+      actions={
+        onEdit || onDelete
+          ? [
+              onEdit && (
+                <Button
+                  key="edit"
+                  type="text"
+                  icon={<EditOutlined />}
+                  onClick={handleEditClick}
+                  style={{ color: token.colorPrimary }}
+                >
+                  编辑
+                </Button>
+              ),
+              onDelete && (
+                <Button
+                  key="delete"
+                  type="text"
+                  icon={<DeleteOutlined />}
+                  onClick={handleDeleteClick}
+                  style={{ color: token.colorError }}
+                >
+                  删除
+                </Button>
+              ),
+            ].filter(Boolean)
+          : undefined
+      }
     >
-      <div className="flex items-start justify-between mb-2">
-        <h3 className="text-xl font-bold text-gray-800">{farmland.name}</h3>
-        {(onEdit || onDelete) && (
-          <div className="flex space-x-2">
-            {onEdit && (
-              <button
-                onClick={handleEditClick}
-                className="p-1 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                title="编辑"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                  />
-                </svg>
-              </button>
-            )}
-            {onDelete && (
-              <button
-                onClick={handleDeleteClick}
-                className="p-1 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                title="删除"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+      <Space direction="vertical" size="small" style={{ width: '100%' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Title level={5} style={{ margin: 0, flex: 1 }}>
+            {farmland.name}
+          </Title>
+        </div>
 
-      <div className="space-y-2 text-sm text-gray-700">
-        <div className="flex items-center">
-          <span className="font-medium w-24">作物类型:</span>
-          <span className="px-2 py-1 rounded-full text-xs font-semibold bg-white shadow-sm">
+        <div>
+          <Text type="secondary" style={{ marginRight: 8 }}>作物类型:</Text>
+          <Tag color={cropColor} style={{ fontWeight: 500 }}>
             {farmland.crop_type}
-          </span>
+          </Tag>
         </div>
 
-        <div className="flex items-center">
-          <span className="font-medium w-24">面积:</span>
-          <span>{farmland.area.toFixed(2)} 亩</span>
+        <div>
+          <Text type="secondary" style={{ marginRight: 16 }}>面积:</Text>
+          <Text strong>{farmland.area.toFixed(2)} 亩</Text>
         </div>
 
-        <div className="flex items-center">
-          <span className="font-medium w-24">创建日期:</span>
-          <span>{formatDate(farmland.created_at)}</span>
+        <div>
+          <Text type="secondary" style={{ marginRight: 8 }}>创建日期:</Text>
+          <Text>{formatDate(farmland.created_at)}</Text>
         </div>
-      </div>
-    </div>
+      </Space>
+    </Card>
   );
 };

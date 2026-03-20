@@ -10,9 +10,13 @@ import type {
   FarmlandUpdate,
   PathPlanningRequest,
   PathPlanningResponse,
+  AllFarmlandsPathRequest,
+  AllFarmlandsPathResponse,
 } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+// 从环境变量获取配置，只需在 .env 文件中修改端口号
+const API_PORT = import.meta.env.VITE_API_PORT || '8001';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || `http://localhost:${API_PORT}`;
 
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -77,6 +81,9 @@ export const farmlandAPI = {
 export const pathPlanningAPI = {
   generate: (data: PathPlanningRequest) =>
     apiClient.post<PathPlanningResponse>('/api/path-planning/generate', data),
+
+  generateAll: (data: AllFarmlandsPathRequest) =>
+    apiClient.post<AllFarmlandsPathResponse>('/api/path-planning/generate-all', data),
 };
 
 export default apiClient;

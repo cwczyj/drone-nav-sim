@@ -1,23 +1,45 @@
-import { useState, useCallback } from 'react';
-import type { FarmlandCreate } from '../types';
+import { useState, useCallback, useEffect } from 'react';
+import { Card, Button, Alert, Row, Col, Typography, Grid, Space, message } from 'antd';
+import { PlusOutlined, CloseOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import type { Farmland, FarmlandCreate } from '../types';
 import { farmlandAPI } from '../services/api';
 import MapCanvas, { type PolygonData } from '../components/map/MapCanvas';
 import { FarmlandForm } from '../components/farmland/FarmlandForm';
 import { FarmlandList as FarmlandListComponent } from '../components/farmland/FarmlandList';
 
+const { Title } = Typography;
+const { useBreakpoint } = Grid;
+
 type ViewMode = 'list' | 'create' | 'form';
 
 export default function FarmlandList() {
+  const screens = useBreakpoint();
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [drawnPolygon, setDrawnPolygon] = useState<PolygonData | null>(null);
+  const [existingFarmlands, setExistingFarmlands] = useState<Farmland[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [createModeKey, setCreateModeKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch existing farmlands to display when creating new ones
+  useEffect(() => {
+    const fetchExistingFarmlands = async () => {
+      try {
+        const response = await farmlandAPI.getAll();
+        setExistingFarmlands(response.data);
+      } catch (err) {
+        console.error('Failed to fetch existing farmlands:', err);
+      }
+    };
+    fetchExistingFarmlands();
+  }, [refreshKey]);
 
   const handleCreateClick = () => {
     setViewMode('create');
     setDrawnPolygon(null);
     setError(null);
+    setCreateModeKey((prev) => prev + 1); // Force remount of MapCanvas to clear drawing layers
   };
 
   const handleCancelCreate = () => {
@@ -45,7 +67,7 @@ export default function FarmlandList() {
 
       await farmlandAPI.create(submitData);
 
-      alert('农田创建成功');
+      message.success('农田创建成功');
       setRefreshKey((prev) => prev + 1);
       setViewMode('list');
       setDrawnPolygon(null);
@@ -63,131 +85,118 @@ export default function FarmlandList() {
     setError(null);
   };
 
+  // Convert existing farmlands to PolygonData for display
+  const existingPolygons: PolygonData[] = existingFarmlands.map((farmland) => ({
+    id: farmland.id,
+    coordinates: farmland.boundary_coords as [number, number][],
+    color: '#aa3bff',
+    fillColor: '#aa3bff',
+    fillOpacity: 0.2,
+  }));
+
   const renderCreateView = () => (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">创建新农田</h2>
-        <button
-          onClick={handleCancelCreate}
-          className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
-        >
+    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Title level={2} style={{ margin: 0 }}>创建新农田</Title>
+        <Button onClick={handleCancelCreate} icon={<CloseOutlined />}>
           取消
-        </button>
+        </Button>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-start">
-          <svg
-            className="w-5 h-5 text-blue-600 mr-2 mt-0.5"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path
-              fillRule="evenodd"
-              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-              clipRule="evenodd"
-            />
-          </svg>
-          <div className="text-sm text-blue-800">
-            <p className="font-medium">在地图上绘制农田边界</p>
-            <p>使用绘图工具在地图上绘制农田的多边形边界，绘制完成后将自动进入信息填写页面。</p>
-          </div>
-        </div>
-      </div>
+      <Alert
+        message="在地图上绘制农田边界"
+        description="使用绘图工具在地图上绘制农田的多边形边界，绘制完成后将自动进入信息填写页面。紫色区域为已存在的农田。"
+        type="info"
+        showIcon
+        icon={<InfoCircleOutlined />}
+        style={{ borderRadius: 8 }}
+      />
 
-      <div className="bg-white rounded-lg shadow-md overflow-hidden" style={{ height: '500px' }}>
+      <Card
+        bordered
+        bodyStyle={{ padding: 0, height: 500 }}
+      >
         <MapCanvas
+          key={`create-${createModeKey}`}
+          polygons={existingPolygons}
           editable={true}
           onPolygonCreate={handlePolygonCreate}
         />
-      </div>
-    </div>
+      </Card>
+    </Space>
   );
 
   const renderFormView = () => {
     if (!drawnPolygon) return null;
 
     return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-gray-900">填写农田信息</h2>
-          <button
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Title level={2} style={{ margin: 0 }}>填写农田信息</Title>
+          <Button
             onClick={handleFormCancel}
             disabled={submitting}
-            className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            icon={<CloseOutlined />}
           >
             取消
-          </button>
+          </Button>
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div className="flex items-center">
-              <svg
-                className="w-5 h-5 text-red-600 mr-2"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <span className="text-red-800">{error}</span>
-            </div>
-          </div>
+          <Alert
+            message={error}
+            type="error"
+            showIcon
+            closable
+            onClose={() => setError(null)}
+          />
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg shadow-md overflow-hidden" style={{ height: '400px' }}>
-            <MapCanvas
-              polygons={[drawnPolygon]}
-              editable={false}
-            />
-          </div>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} lg={12}>
+            <Card
+              bordered
+              bodyStyle={{ padding: 0, height: 400 }}
+            >
+              <MapCanvas
+                polygons={[drawnPolygon]}
+                editable={false}
+              />
+            </Card>
+          </Col>
 
-          <FarmlandForm
-            polygonCoords={drawnPolygon.coordinates}
-            onSubmit={handleFormSubmit}
-            onCancel={handleFormCancel}
-          />
-        </div>
-      </div>
+          <Col xs={24} lg={12}>
+            <FarmlandForm
+              polygonCoords={drawnPolygon.coordinates}
+              onSubmit={handleFormSubmit}
+              onCancel={handleFormCancel}
+            />
+          </Col>
+        </Row>
+      </Space>
     );
   };
 
   const renderListView = () => (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">农田管理</h2>
-        <button
+    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Title level={2} style={{ margin: 0 }}>农田管理</Title>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
           onClick={handleCreateClick}
-          className="px-4 py-2 text-white bg-purple-600 rounded-md hover:bg-purple-700 flex items-center"
+          size="large"
         >
-          <svg
-            className="w-5 h-5 mr-2"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
           创建新农田
-        </button>
+        </Button>
       </div>
 
       <FarmlandListComponent key={refreshKey} />
-    </div>
+    </Space>
   );
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div style={{ padding: screens.md ? 24 : 16 }}>
       {viewMode === 'list' && renderListView()}
       {viewMode === 'create' && renderCreateView()}
       {viewMode === 'form' && renderFormView()}

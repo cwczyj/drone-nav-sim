@@ -1,0 +1,9 @@
+[
+  {
+    "id": "cfc0775f-0441-49c5-9a83-7f75941e5a42",
+    "username": "filetest",
+    "email": "filetest@example.com",
+    "password_hash": "$2b$12$ZShsRex7Wz/ZAe62Fu8LPu8IjBgb8moIWnK/t.I0e8Fl5lkdl5TIG",
+    "created_at": "2026-01-26 11:36:20.150605"
+  }
+]

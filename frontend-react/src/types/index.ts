@@ -47,13 +47,58 @@ export interface FarmlandUpdate {
 }
 
 export interface PathPlanningRequest {
-  farmlandId: string;
-  swathWidth?: number;
-  useDl?: boolean;
+  farmland_id: string;
+  swath_width?: number;
+  use_dl?: boolean;
 }
 
 export interface PathPlanningResponse {
-  path: number[][];
-  totalDistance: number;
-  estimatedTime: number;
+  farmland_id: string;
+  waypoints: number[][];
+  total_distance: number;
+  estimated_time: number;
+  turn_count?: number;
+  use_dl_optimization?: boolean;
+  generated_at?: string;
+}
+
+export interface AllFarmlandsPathRequest {
+  swath_width?: number;
+  use_dl?: boolean;
+  farmland_ids?: string[];
+  merge_farmlands?: boolean;
+}
+
+export interface SingleFarmlandPath {
+  farmland_id: string;
+  farmland_name: string;
+  waypoints: number[][];
+  total_distance: number;
+  estimated_time: number;
+  turn_count?: number;
+}
+
+export interface AllFarmlandsPathResponse {
+  farmlands: SingleFarmlandPath[];
+  total_distance: number;
+  total_estimated_time: number;
+  total_turn_count: number;
+  use_dl_optimization: boolean;
+  generated_at?: string;
+  // 合并模式下的额外字段
+  merged_path?: number[][];
+  farmland_boundaries?: Array<{
+    farmland_id: string;
+    farmland_name: string;
+    coords: number[][];
+    center: number[];
+  }>;
+  view_bounds?: {
+    min_x: number;
+    max_x: number;
+    min_y: number;
+    max_y: number;
+    center_x: number;
+    center_y: number;
+  };
 }

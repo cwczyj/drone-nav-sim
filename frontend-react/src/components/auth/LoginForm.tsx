@@ -1,150 +1,101 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { Form, Input, Button, Card, message } from 'antd';
+import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useAuth } from '../../hooks/useAuth';
 import type { LoginRequest } from '../../types';
 
-interface FormErrors {
-  username?: string;
-  password?: string;
-  general?: string;
-}
-
 export default function LoginForm() {
-  const [formData, setFormData] = useState<LoginRequest>({
-    username: '',
-    password: '',
-  });
-  const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const validateForm = (): boolean => {
-    const newErrors: FormErrors = {};
-
-    if (!formData.username.trim()) {
-      newErrors.username = '用户名不能为空';
-    } else if (formData.username.length < 3) {
-      newErrors.username = '用户名至少需要 3 个字符';
-    }
-
-    if (!formData.password) {
-      newErrors.password = '密码不能为空';
-    } else if (formData.password.length < 6) {
-      newErrors.password = '密码至少需要 6 个字符';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-    if (errors[name as keyof FormErrors]) {
-      setErrors((prev) => ({
-        ...prev,
-        [name]: undefined,
-      }));
-    }
-    if (errors.general) {
-      setErrors((prev) => ({
-        ...prev,
-        general: undefined,
-      }));
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
-
+  const handleSubmit = async (values: LoginRequest) => {
     setIsSubmitting(true);
     try {
-      await login(formData);
+      await login(values);
+      message.success('登录成功！');
       navigate('/');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '登录失败，请检查用户名和密码是否正确';
-      setErrors({
-        general: errorMessage,
-      });
+      message.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="login-container">
-      <div className="login-card">
-        <h1 className="login-title">登录</h1>
-        <p className="login-subtitle">欢迎回来，请登录您的账户</p>
-
-        {errors.general && (
-          <div className="error-message general-error">
-            {errors.general}
+    <div className="login-page">
+      <div className="login-content">
+        <div className="login-header">
+          <div className="logo-container">
+            <div className="logo-icon">🚁</div>
+            <h1 className="app-title">农业无人机导航规划系统</h1>
           </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="login-form">
-          <div className="form-group">
-            <label htmlFor="username" className="form-label">
-              用户名
-            </label>
-            <input
-              type="text"
-              id="username"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              className={`form-input ${errors.username ? 'input-error' : ''}`}
-              placeholder="请输入用户名"
-              disabled={isSubmitting}
-            />
-            {errors.username && (
-              <span className="error-text">{errors.username}</span>
-            )}
+        </div>
+        
+        <Card className="login-card" bordered={false}>
+          <div className="login-card-header">
+            <h2 className="login-title">欢迎回来</h2>
+            <p className="login-subtitle">请登录您的账户以继续</p>
           </div>
-
-          <div className="form-group">
-            <label htmlFor="password" className="form-label">
-              密码
-            </label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              className={`form-input ${errors.password ? 'input-error' : ''}`}
-              placeholder="请输入密码"
-              disabled={isSubmitting}
-            />
-            {errors.password && (
-              <span className="error-text">{errors.password}</span>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            className="submit-button"
-            disabled={isSubmitting}
+          
+          <Form
+            name="login"
+            layout="vertical"
+            onFinish={handleSubmit}
+            autoComplete="off"
+            size="large"
           >
-            {isSubmitting ? '登录中...' : '登录'}
-          </button>
-        </form>
+            <Form.Item
+              name="username"
+              rules={[
+                { required: true, message: '请输入用户名' },
+                { min: 3, message: '用户名至少需要 3 个字符' }
+              ]}
+            >
+              <Input
+                prefix={<UserOutlined className="site-form-item-icon" />}
+                placeholder="用户名"
+                disabled={isSubmitting}
+              />
+            </Form.Item>
 
-        <p className="register-link">
-          还没有账户？{' '}
-          <Link to="/register" className="link">
-            立即注册
-          </Link>
-        </p>
+            <Form.Item
+              name="password"
+              rules={[
+                { required: true, message: '请输入密码' },
+                { min: 6, message: '密码至少需要 6 个字符' }
+              ]}
+            >
+              <Input.Password
+                prefix={<LockOutlined className="site-form-item-icon" />}
+                placeholder="密码"
+                disabled={isSubmitting}
+              />
+            </Form.Item>
+
+            <Form.Item>
+              <Button 
+                type="primary" 
+                htmlType="submit" 
+                block 
+                loading={isSubmitting}
+                size="large"
+                className="login-button"
+              >
+                {isSubmitting ? '登录中...' : '登录'}
+              </Button>
+            </Form.Item>
+          </Form>
+
+          <div className="register-section">
+            <span className="register-text">还没有账户？</span>
+            <Link to="/register" className="register-link">
+              立即注册
+            </Link>
+          </div>
+        </Card>
       </div>
     </div>
   );

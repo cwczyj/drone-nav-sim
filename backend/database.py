@@ -85,3 +85,8 @@ def delete_farmland(farmland_id: str):
 
 def get_user_farmlands(user_id: str) -> list:
     return [f for f in farmlands_db.values() if f.user_id == user_id]
+
+
+def get_all_farmlands() -> list:
+    """获取所有农田"""
+    return list(farmlands_db.values())

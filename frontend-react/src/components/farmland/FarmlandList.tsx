@@ -1,9 +1,14 @@
 import React, { useEffect, useState } from 'react';
+import { Card, Row, Col, Typography, Spin, Alert, Tabs } from 'antd';
+import { EnvironmentOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { farmlandAPI } from '../../services/api';
 import type { Farmland } from '../../types';
 import { FarmlandCard } from './FarmlandCard';
 import { FarmlandEdit } from './FarmlandEdit';
 import { DeleteConfirm } from './DeleteConfirm';
+import MapCanvas, { type PolygonData } from '../map/MapCanvas';
+
+const { Title, Text } = Typography;
 
 interface FarmlandListProps {
   onFarmlandClick?: (farmland: Farmland) => void;
@@ -15,6 +20,8 @@ export const FarmlandList: React.FC<FarmlandListProps> = ({ onFarmlandClick }) =
   const [error, setError] = useState<string | null>(null);
   const [editingFarmland, setEditingFarmland] = useState<Farmland | null>(null);
   const [deletingFarmland, setDeletingFarmland] = useState<Farmland | null>(null);
+  const [activeTab, setActiveTab] = useState('list');
+  const [mapRefreshKey, setMapRefreshKey] = useState(0);
 
   const fetchFarmlands = async () => {
     try {
@@ -34,6 +41,14 @@ export const FarmlandList: React.FC<FarmlandListProps> = ({ onFarmlandClick }) =
     fetchFarmlands();
   }, []);
 
+  // Convert farmlands to PolygonData for map display (without color to use auto-generated colors)
+  // Compute this before any conditional returns to maintain hook order
+  const mapPolygons: PolygonData[] = farmlands.map((farmland) => ({
+    id: farmland.id,
+    coordinates: farmland.boundary_coords as [number, number][],
+    // No color specified - will use auto-generated colors based on position
+  }));
+
   const handleEdit = (farmland: Farmland) => {
     setEditingFarmland(farmland);
   };
@@ -50,6 +65,7 @@ export const FarmlandList: React.FC<FarmlandListProps> = ({ onFarmlandClick }) =
   const handleDeleteSuccess = () => {
     fetchFarmlands();
     setDeletingFarmland(null);
+    setMapRefreshKey((prev) => prev + 1);
   };
 
   const handleFarmlandClick = (farmland: Farmland) => {
@@ -60,76 +76,88 @@ export const FarmlandList: React.FC<FarmlandListProps> = ({ onFarmlandClick }) =
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-          <p className="text-gray-600">加载农田列表中...</p>
+      <Card>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 48 }}>
+          <Spin size="large" tip="加载农田列表中..." />
         </div>
-      </div>
+      </Card>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <div className="flex items-center">
-          <svg
-            className="w-5 h-5 text-red-600 mr-2"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path
-              fillRule="evenodd"
-              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-              clipRule="evenodd"
-            />
-          </svg>
-          <span className="text-red-800">{error}</span>
-        </div>
-      </div>
+      <Alert
+        message="加载失败"
+        description={error}
+        type="error"
+        showIcon
+        style={{ marginBottom: 16 }}
+      />
     );
   }
 
-  if (farmlands.length === 0) {
-    return (
-      <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
-        <svg
-          className="mx-auto h-16 w-16 text-gray-400 mb-4"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+  const tabItems = [
+    {
+      key: 'list',
+      label: (
+        <span>
+          <AppstoreOutlined />
+          列表视图
+        </span>
+      ),
+      children: (
+        <Row gutter={[16, 16]}>
+          {farmlands.map((farmland) => (
+            <Col key={farmland.id} xs={24} sm={12} lg={8}>
+              <FarmlandCard
+                farmland={farmland}
+                onClick={handleFarmlandClick}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
+            </Col>
+          ))}
+        </Row>
+      ),
+    },
+    {
+      key: 'map',
+      label: (
+        <span>
+          <EnvironmentOutlined />
+          地图总览
+        </span>
+      ),
+      children: (
+        <Card bordered bodyStyle={{ padding: 0, height: 500 }}>
+          <MapCanvas
+            key={`map-${mapRefreshKey}`}
+            polygons={mapPolygons}
+            editable={false}
           />
-        </svg>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">暂无农田</h3>
-        <p className="text-gray-500">还没有创建任何农田，快去创建第一个农田吧！</p>
-      </div>
-    );
-  }
+        </Card>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold text-gray-900">农田列表</h2>
-        <span className="text-sm text-gray-600">共 {farmlands.length} 个农田</span>
+    <>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Title level={4} style={{ margin: 0 }}>
+            <EnvironmentOutlined style={{ marginRight: 8 }} />
+            农田管理
+          </Title>
+          <Text type="secondary">共 {farmlands.length} 个农田</Text>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {farmlands.map((farmland) => (
-          <FarmlandCard
-            key={farmland.id}
-            farmland={farmland}
-            onClick={handleFarmlandClick}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
-        ))}
-      </div>
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={tabItems}
+        size="middle"
+      />
 
       <FarmlandEdit
         farmland={editingFarmland}
@@ -144,6 +172,6 @@ export const FarmlandList: React.FC<FarmlandListProps> = ({ onFarmlandClick }) =
         onClose={() => setDeletingFarmland(null)}
         onSuccess={handleDeleteSuccess}
       />
-    </div>
+    </>
   );
 };

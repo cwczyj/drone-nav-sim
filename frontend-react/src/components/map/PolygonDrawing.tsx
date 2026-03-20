@@ -1,8 +1,11 @@
-import { useRef, useState } from 'react';
-import { FeatureGroup } from 'react-leaflet';
-import { EditControl } from 'react-leaflet-draw';
+import { useEffect, useRef } from 'react';
+import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet-draw/dist/leaflet.draw.css';
+
+// Import leaflet-draw to attach Draw to L
+import 'leaflet-draw';
+
 import type { DrawingMode } from './DrawingControls';
 import './PolygonDrawing.css';
 
@@ -18,20 +21,26 @@ export default function PolygonDrawing({
   onPolygonEdit,
   onPolygonDelete,
 }: PolygonDrawingProps) {
+  const map = useMap();
+  const drawControlRef = useRef<L.Control | null>(null);
   const editableLayersRef = useRef<L.FeatureGroup | null>(null);
-  const [currentPolygon, setCurrentPolygon] = useState<L.Polygon | null>(null);
 
-  const extractCoordinates = (layer: L.Layer): [number, number][] => {
-    const latLngs = (layer as L.Polygon).getLatLngs() as L.LatLng[];
-    const coordinates: [number, number][] = latLngs.map((latlng) => [
-      latlng.lng,
-      latlng.lat,
-    ]);
+  const extractCoordinates = (layer: L.Polygon): [number, number][] => {
+    const latLngs = layer.getLatLngs();
     
+    // Handle nested arrays (multi-polygon case)
+    const firstRing = Array.isArray(latLngs[0]) ? latLngs[0] : latLngs;
+    
+    // Convert LatLng objects to [lng, lat] tuples
+    const coordinates: [number, number][] = (firstRing as any[])
+      .filter((latlng) => latlng && typeof latlng.lat === 'number' && typeof latlng.lng === 'number')
+      .map((latlng) => [latlng.lng, latlng.lat]);
+    
+    // Ensure polygon is closed (first point equals last point)
     if (
       coordinates.length > 0 &&
-      coordinates[0][0] !== coordinates[coordinates.length - 1][0] ||
-      coordinates[0][1] !== coordinates[coordinates.length - 1][1]
+      (coordinates[0][0] !== coordinates[coordinates.length - 1][0] ||
+      coordinates[0][1] !== coordinates[coordinates.length - 1][1])
     ) {
       coordinates.push([coordinates[0][0], coordinates[0][1]]);
     }
@@ -39,64 +48,58 @@ export default function PolygonDrawing({
     return coordinates;
   };
 
-  const handleCreated = (e: any) => {
-    const layer = e.layer;
+  useEffect(() => {
+    // Initialize feature group for editable layers
+    editableLayersRef.current = new L.FeatureGroup();
+    map.addLayer(editableLayersRef.current);
     
-    if (layer instanceof L.Polygon) {
-      if (currentPolygon) {
-        editableLayersRef.current?.removeLayer(currentPolygon);
-      }
-      
-      setCurrentPolygon(layer);
-      editableLayersRef.current?.addLayer(layer);
-      
-      const coordinates = extractCoordinates(layer);
-      onPolygonCreate?.(coordinates);
-    }
-  };
+    // Clear any existing layers in the feature group to ensure clean state
+    editableLayersRef.current.clearLayers();
 
-  const handleEdited = (e: any) => {
-    const layers = e.layers;
-    layers.eachLayer((layer: L.Layer) => {
+    // Handle draw:created event
+    const onDrawCreated = (e: any) => {
+      const layer = e.layer;
+      
       if (layer instanceof L.Polygon) {
         const coordinates = extractCoordinates(layer);
-        onPolygonEdit?.(coordinates);
+        onPolygonCreate?.(coordinates);
       }
-    });
-  };
+    };
 
-  const handleDeleted = (e: any) => {
-    const layers = e.layers;
-    let deletedCount = 0;
-    
-    layers.eachLayer((layer: L.Layer) => {
-      if (layer instanceof L.Polygon) {
-        deletedCount++;
+    // Handle draw:edited event
+    const onDrawEdited = (e: any) => {
+      const layers = e.layers;
+      layers.eachLayer((layer: L.Layer) => {
+        if (layer instanceof L.Polygon) {
+          const coordinates = extractCoordinates(layer);
+          onPolygonEdit?.(coordinates);
+        }
+      });
+    };
+
+    // Handle draw:deleted event
+    const onDrawDeleted = (e: any) => {
+      const layers = e.layers;
+      let deletedCount = 0;
+      
+      layers.eachLayer((layer: L.Layer) => {
+        if (layer instanceof L.Polygon) {
+          deletedCount++;
+        }
+      });
+      
+      if (deletedCount > 0) {
+        onPolygonDelete?.();
       }
-    });
-    
-    if (deletedCount > 0) {
-      setCurrentPolygon(null);
-      onPolygonDelete?.();
-    }
-  };
+    };
 
-  const handleMounted = (editControl: any) => {
-    const map = editControl._map;
-    if (map) {
-      (map as any).drawControl = editControl;
-    }
-  };
-
-  return (
-    <FeatureGroup ref={editableLayersRef}>
-      <EditControl
-        position="topright"
-        onMounted={handleMounted}
-        onCreated={handleCreated}
-        onEdited={handleEdited}
-        onDeleted={handleDeleted}
-        edit={{
+    // Create draw control
+    // Access L.Control.Draw from the L namespace (leaflet-draw attaches it there)
+    const DrawControl = (L as any).Control.Draw;
+    if (DrawControl) {
+      drawControlRef.current = new DrawControl({
+        edit: {
+          featureGroup: editableLayersRef.current,
           edit: {
             selectedPathOptions: {
               color: '#aa3bff',
@@ -106,8 +109,8 @@ export default function PolygonDrawing({
             },
           },
           remove: true,
-        }}
-        draw={{
+        },
+        draw: {
           polygon: {
             allowIntersection: false,
             showArea: false,
@@ -117,15 +120,48 @@ export default function PolygonDrawing({
               fillOpacity: 0.2,
               weight: 2,
             },
-            icon: new L.Icon.Default(),
           },
           polyline: false,
           rectangle: false,
           circle: false,
           marker: false,
           circlemarker: false,
-        }}
-      />
-    </FeatureGroup>
-  );
+        },
+      });
+    }
+
+    if (drawControlRef.current) {
+      map.addControl(drawControlRef.current);
+    }
+
+    // Add event listeners using string event names
+    const DrawEvents = (L as any).Draw?.Event || {
+      CREATED: 'draw:created',
+      EDITED: 'draw:edited',
+      DELETED: 'draw:deleted',
+    };
+    
+    map.on(DrawEvents.CREATED, onDrawCreated);
+    map.on(DrawEvents.EDITED, onDrawEdited);
+    map.on(DrawEvents.DELETED, onDrawDeleted);
+
+    // Cleanup
+    return () => {
+      if (drawControlRef.current) {
+        try {
+          map.removeControl(drawControlRef.current);
+        } catch (e) {
+          // Control may have already been removed
+        }
+      }
+      if (editableLayersRef.current) {
+        map.removeLayer(editableLayersRef.current);
+      }
+      map.off(DrawEvents.CREATED, onDrawCreated);
+      map.off(DrawEvents.EDITED, onDrawEdited);
+      map.off(DrawEvents.DELETED, onDrawDeleted);
+    };
+  }, [map, onPolygonCreate, onPolygonEdit, onPolygonDelete]);
+
+  return null;
 }

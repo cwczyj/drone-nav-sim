@@ -37,16 +37,27 @@ cd ../frontend-react
 npm install
 ```
 
-### 2. 启动后端服务
+### 2. 配置端口（可选）
+
+如果后端运行在非默认端口（默认 8000），需要修改前端配置：
+
+```bash
+# 编辑 frontend-react/.env 文件
+VITE_API_PORT=8001  # 修改为后端实际运行的端口号
+```
+
+**注意：** 只需修改 `.env` 文件中的 `VITE_API_PORT` 值，前端会自动同步配置。
+
+### 3. 启动后端服务
 
 ```bash
 cd backend
-uvicorn main:app --reload
+uvicorn main:app --reload --port 8001  # 指定端口号（默认 8000）
 ```
 
-后端服务将在 http://localhost:8000 启动
+后端服务将在 http://localhost:8001 启动
 
-### 3. 启动前端服务
+### 4. 启动前端服务
 
 ```bash
 cd frontend-react
@@ -55,7 +66,7 @@ npm run dev
 
 前端服务将在 http://localhost:5173 启动
 
-### 4. 一键启动（推荐）
+### 5. 一键启动（推荐）
 
 ```bash
 python run_all.py

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '../../test-utils';
 import MapCanvas from './MapCanvas';
 import type { PolygonData } from './MapCanvas';
 
@@ -16,6 +16,11 @@ jest.mock('react-leaflet', () => ({
   ),
 }));
 
+jest.mock('react-leaflet-draw', () => ({
+  EditControl: () => <div data-testid="edit-control" />,
+  FeatureGroup: ({ children }: any) => <div data-testid="feature-group">{children}</div>,
+}));
+
 jest.mock('leaflet', () => ({
   CRS: {
     Simple: 'Simple',
@@ -27,6 +32,10 @@ jest.mock('leaflet', () => ({
     },
   },
 }));
+
+jest.mock('leaflet-draw', () => ({}));
+
+jest.mock('leaflet-draw/dist/leaflet.draw.css', () => ({}));
 
 describe('MapCanvas', () => {
   const mockPolygons: PolygonData[] = [
@@ -79,7 +88,7 @@ describe('MapCanvas', () => {
     const polygons = screen.getAllByTestId('polygon');
     const firstPolygon = polygons[0];
     const positions = JSON.parse(firstPolygon.getAttribute('data-positions') || '[]');
-    
+
     expect(positions).toEqual([
       [100, 100],
       [100, 200],

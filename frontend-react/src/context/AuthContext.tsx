@@ -110,3 +110,6 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
+// Default export for consistent HMR behavior
+export default AuthContext;
