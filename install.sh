@@ -18,8 +18,8 @@ echo ""
 
 # 安装前端依赖
 echo "正在安装前端依赖..."
-cd ../frontend
-pip install -r requirements.txt
+cd ../frontend-react
+npm install
 
 if [ $? -ne 0 ]; then
     echo "❌ 前端依赖安装失败"
