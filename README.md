@@ -213,6 +213,19 @@ npm test
 5. 前端开发服务器默认运行在5173端口
 6. 深度学习模型需要PyTorch支持，首次加载可能较慢
 
+## 天地图 Token 配置
+
+系统使用天地图（Tianditu）作为卫星影像底图服务。
+
+1. 访问 http://console.tianditu.gov.cn 注册开发者账号
+2. 创建应用，获取 API Token（免费）
+3. 在 `frontend-react/.env` 中配置:
+   ```bash
+   VITE_TIANDITU_TOKEN=your_token_here
+   ```
+
+注意：Token 配置完成后，地图将显示山西右玉地区卫星影像。
+
 ## 开发指南
 
 ### 代码风格

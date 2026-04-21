@@ -68,3 +68,24 @@ class FarmlandResponse(BaseModel):
     boundary_coords: List[List[float]]
     created_at: datetime
     updated_at: datetime
+
+
+class GeoCoordinate(BaseModel):
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
+
+
+class WaypointWithAlt(GeoCoordinate):
+    altitude: float = Field(default=50.0, ge=0)
+    sequence: int = Field(..., ge=0)
+
+
+class FarmlandGeo(BaseModel):
+    id: str
+    user_id: str
+    name: str
+    area: float
+    crop_type: str
+    boundary_coords: List[GeoCoordinate]
+    created_at: datetime
+    updated_at: datetime

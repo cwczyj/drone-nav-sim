@@ -1,30 +1,12 @@
 {
-  "active_plan": "/home/lipschitz/Documents/Code/Python_Code/PatialWork/drone-nav-sim/.sisyphus/plans/thesis-writing.md",
-  "started_at": "2026-03-23T02:50:02.258Z",
+  "active_plan": "/home/lipschitz/Documents/Code/Python_Code/PatialWork/drone-nav-sim/.sisyphus/plans/geo-map-impl.md",
+  "started_at": "2026-04-21T04:40:17.857Z",
   "session_ids": [
-    "ses_2e78882caffeOddxCn58bV5Yr1",
-    "ses_2e76885acffe7Yo0sprh0RCLRi",
-    "ses_2e762476cffe2ba7ulLFYRVEtu",
-    "ses_2e76885a2ffeWGxFanJzp1Hjly",
-    "ses_2e760b6efffej2vDOu5KgW3W4X",
-    "ses_2e76885aaffeOTYp2uGFLRRPcq",
-    "ses_2e760b6ebffe62d0fh0om0CcCH",
-    "ses_2e7624762ffeyOnnIDwbK07a5V",
-    "ses_2e7624772ffehT09lV0L6tL0Oy",
-    "ses_2e7624770ffefNPGHRlI8V0D74",
-    "ses_2e75fa3dcffeQAisrLmY18t3Zt",
-    "ses_2e7600ecbffeZiNKDHia6yAlue",
-    "ses_2e75ed500ffeVCfwZVPU2a2PaX",
-    "ses_2e76885a4ffet3ajse0JUf7MxA",
-    "ses_2e75d5425ffePu7DI7f0P9pvsU",
-    "ses_2e75b10d5ffezw97i4PtxngnfU",
-    "ses_2e75b10d2ffeoCAeRkPt5uNj2e",
-    "ses_2e7547795ffePW6r7myfGbspuT",
-    "ses_2e75477adffeBLs1LFOdR1zQR0",
-    "ses_2e75477a6ffepeb0sIwiulxwqX",
-    "ses_2e75477acffecY2yv5WqN7oH2n",
-    "ses_2e74e82e8ffeDLGaZsXF0ZNR7U"
+    "ses_251e53ec9ffeAqpOn5lblETg3r"
   ],
-  "plan_name": "thesis-writing",
+  "session_origins": {
+    "ses_251e53ec9ffeAqpOn5lblETg3r": "direct"
+  },
+  "plan_name": "geo-map-impl",
   "agent": "atlas"
 }

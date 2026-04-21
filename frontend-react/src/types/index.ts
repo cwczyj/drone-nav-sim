@@ -102,3 +102,34 @@ export interface AllFarmlandsPathResponse {
     center_y: number;
   };
 }
+
+export interface GeoCoordinate {
+  latitude: number;
+  longitude: number;
+}
+
+export interface WaypointWithAlt extends GeoCoordinate {
+  altitude: number;
+  sequence: number;
+}
+
+export interface FarmlandGeo {
+  id: string;
+  user_id: string;
+  name: string;
+  area: number;
+  crop_type: string;
+  boundary_coords: GeoCoordinate[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PathPlanningResponseGeo {
+  farmland_id: string;
+  waypoints: WaypointWithAlt[];
+  total_distance: number;
+  estimated_time: number;
+  turn_count?: number;
+  use_dl_optimization?: boolean;
+  generated_at?: string;
+}
