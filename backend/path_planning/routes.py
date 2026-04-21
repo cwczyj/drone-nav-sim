@@ -18,6 +18,7 @@ import math
 from auth import get_current_user
 from database import get_farmland_by_id, get_all_farmlands
 from models import User, Farmland
+from .geo_utils import haversine_distance, calculate_bearing
 from .cpp import generate_coverage_path
 from .dl_model import optimize_path
 from shapely.geometry import Polygon
@@ -119,32 +120,30 @@ def calculate_path_metrics(waypoints: List[Tuple[float, float]], swath_width: fl
     if len(waypoints) < 2:
         return 0.0, 0.0, 0
     
-    # 计算总距离
+    # 计算总距离（使用 Haversine 公式计算地理坐标距离）
     total_distance = 0.0
     for i in range(len(waypoints) - 1):
-        dx = waypoints[i + 1][0] - waypoints[i][0]
-        dy = waypoints[i + 1][1] - waypoints[i][1]
-        total_distance += math.sqrt(dx * dx + dy * dy)
+        lat1, lon1 = waypoints[i]
+        lat2, lon2 = waypoints[i + 1]
+        total_distance += haversine_distance(lat1, lon1, lat2, lon2)
     
-    # 估算转弯次数（方向变化超过阈值）
+    # 估算转弯次数（使用方位角）
     turn_count = 0
     angle_threshold = math.radians(5)  # 5 度阈值
     
     for i in range(1, len(waypoints) - 1):
-        prev_dir = math.atan2(
-            waypoints[i][1] - waypoints[i - 1][1],
-            waypoints[i][0] - waypoints[i - 1][0]
-        )
-        curr_dir = math.atan2(
-            waypoints[i + 1][1] - waypoints[i][1],
-            waypoints[i + 1][0] - waypoints[i][0]
-        )
+        lat1, lon1 = waypoints[i - 1]
+        lat2, lon2 = waypoints[i]
+        lat3, lon3 = waypoints[i + 1]
         
-        angle_diff = abs(prev_dir - curr_dir)
-        if angle_diff > math.pi:
-            angle_diff = 2 * math.pi - angle_diff
+        bearing1 = calculate_bearing(lat1, lon1, lat2, lon2)
+        bearing2 = calculate_bearing(lat2, lon2, lat3, lon3)
         
-        if angle_diff > angle_threshold:
+        angle_diff = abs(bearing1 - bearing2)
+        if angle_diff > 180:
+            angle_diff = 360 - angle_diff
+        
+        if angle_diff > 5:  # 5度阈值
             turn_count += 1
     
     # 估算时间（假设平均速度 5 米/秒，转弯额外 3 秒）

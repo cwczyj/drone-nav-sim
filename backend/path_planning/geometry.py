@@ -15,6 +15,8 @@ from shapely.ops import split, unary_union, transform
 import numpy as np
 from typing import List, Tuple, Optional
 
+from .geo_utils import haversine_distance, spherical_polygon_area, calculate_bearing
+
 
 # ============ 基础几何函数（从前端移植）============
 
@@ -48,6 +50,21 @@ def calculate_polygon_area(coords: List[List[float]], coord_to_meter: float = 1.
 
     area_sqm = abs(area_sqm) / 2 * (coord_to_meter ** 2)
     area_mu = area_sqm * sqm_to_mu
+
+    return round(area_mu, 2)
+
+
+def calculate_geodetic_area(coords: List[List[float]], sqm_to_mu: float = 666.67) -> float:
+    """
+    计算地理多边形面积（球面面积）
+    """
+    if len(coords) < 3:
+        return 0
+
+    tuple_coords = [(c[0], c[1]) for c in coords]
+
+    area_sqm = spherical_polygon_area(tuple_coords)
+    area_mu = area_sqm / sqm_to_mu
 
     return round(area_mu, 2)
 
