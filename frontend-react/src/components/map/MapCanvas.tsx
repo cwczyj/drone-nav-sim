@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { MapContainer, Polygon, Polyline } from 'react-leaflet';
+import { MapContainer, Polygon } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './MapCanvas.css';
 import DrawingControls, { type DrawingMode } from './DrawingControls';
 import PolygonDrawing from './PolygonDrawing';
+import TiandituLayer from './TiandituLayer';
+import { YOUYU_REGION } from '../../utils/geography';
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -51,93 +53,23 @@ const generateColorForPolygon = (coordinates: [number, number][], index: number)
   };
 };
 
-function GridOverlay() {
-  const gridSize = 1000;
-  const gridLines: [number, number][][] = [];
-  
-  for (let x = 0; x <= gridSize; x += 100) {
-    gridLines.push([
-      [x, 0],
-      [x, gridSize]
-    ]);
-  }
-  
-  for (let y = 0; y <= gridSize; y += 100) {
-    gridLines.push([
-      [0, y],
-      [gridSize, y]
-    ]);
-  }
-
-  return (
-    <>
-      {gridLines.map((line, index) => (
-        <Polyline
-          key={`grid-${index}`}
-          positions={line}
-          pathOptions={{
-            color: '#9ca3af',
-            weight: 0.5,
-            opacity: 0.3,
-            dashArray: '5, 5',
-            interactive: false,
-          }}
-        />
-      ))}
-    </>
-  );
-}
-
-function BoundaryLines() {
-  const boundary: [number, number][] = [
-    [0, 0],
-    [1000, 0],
-    [1000, 1000],
-    [0, 1000],
-    [0, 0]
-  ];
-
-  return (
-    <Polyline
-      positions={boundary}
-      pathOptions={{
-        color: '#08060d',
-        weight: 2,
-        opacity: 0.8,
-        interactive: false,
-      }}
-    />
-  );
-}
-
 export default function MapCanvas({
   polygons = [],
   editable = false,
   onPolygonCreate,
   onPolygonEdit,
-  showGrid = true,
-}: Pick<MapCanvasProps, 'polygons' | 'editable' | 'onPolygonCreate' | 'onPolygonEdit' | 'showGrid'>) {
+}: Pick<MapCanvasProps, 'polygons' | 'editable' | 'onPolygonCreate' | 'onPolygonEdit'>) {
   const mapRef = useRef<L.Map | null>(null);
   const [drawingMode, setDrawingMode] = useState<DrawingMode>('view');
   const [currentPolygon, setCurrentPolygon] = useState<PolygonData | null>(null);
 
-  const crsSimple = L.CRS.Simple;
-
-  // Extended bounds to allow zooming out further
-  const extendedBounds: L.LatLngBoundsExpression = [
-    [-200, -200],
-    [1200, 1200]
-  ];
-
-  const bounds: L.LatLngBoundsExpression = [
-    [0, 0],
-    [1000, 1000]
-  ];
-
   useEffect(() => {
     const map = mapRef.current;
     if (map) {
-      map.fitBounds(bounds);
+      map.fitBounds([
+        [YOUYU_REGION.bounds.minLat, YOUYU_REGION.bounds.minLng],
+        [YOUYU_REGION.bounds.maxLat, YOUYU_REGION.bounds.maxLng]
+      ]);
       
       // Enable scroll wheel zoom when not in view mode
       if (editable && drawingMode !== 'view') {
@@ -186,13 +118,10 @@ export default function MapCanvas({
       />
       <MapContainer
         ref={mapRef}
-        crs={crsSimple}
-        bounds={extendedBounds}
-        maxBounds={extendedBounds}
-        maxBoundsViscosity={0.8}
-        minZoom={-2}
-        maxZoom={5}
-        zoom={1}
+        center={[YOUYU_REGION.center.latitude, YOUYU_REGION.center.longitude]}
+        zoom={12}
+        maxZoom={18}
+        minZoom={3}
         style={{ width: '100%', height: '100%' }}
         zoomControl={true}
         scrollWheelZoom={editable && drawingMode !== 'view'}
@@ -200,8 +129,7 @@ export default function MapCanvas({
         dragging={true}
         className="map-canvas"
       >
-        {showGrid && <GridOverlay />}
-        {showGrid && <BoundaryLines />}
+        <TiandituLayer layerType="img" showAnnotation={true} />
         
         {displayPolygons.map((polygon, index) => {
           // Auto-generate color if not provided

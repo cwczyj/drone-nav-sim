@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
-import { MapContainer, Polygon, Polyline, CircleMarker, TileLayer } from 'react-leaflet';
+import { MapContainer, Polygon, Polyline, CircleMarker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
 import { pathPlanningAPI } from '../../services/api';
 import type { PathPlanningResponse } from '../../types';
 import styles from './PathVisualization.module.css';
+import TiandituLayer from '../map/TiandituLayer';
 
 interface PathVisualizationProps {
   farmlandId: string;
@@ -17,14 +17,6 @@ interface PathVisualizationProps {
   allPathsData?: import('../../types').AllFarmlandsPathResponse;
   mergeFarmlands?: boolean;
 }
-
-// Calculate center point from boundary coordinates for map view
-const getCenter = (boundaryCoords: number[][]): [number, number] => {
-  if (boundaryCoords.length === 0) return [0, 0];
-  const avgX = boundaryCoords.reduce((sum, coord) => sum + coord[0], 0) / boundaryCoords.length;
-  const avgY = boundaryCoords.reduce((sum, coord) => sum + coord[1], 0) / boundaryCoords.length;
-  return [avgY, avgX]; // Note: Leaflet uses [lat, lng] = [y, x]
-};
 
 // Calculate bounds from boundary coordinates
 const getBounds = (boundaryCoords: number[][]): [[number, number], [number, number]] => {
@@ -72,8 +64,6 @@ export default function PathVisualization({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const center = getCenter(boundaryCoords);
-  
   // 在合并模式下使用后端返回的 view_bounds 计算缩放级别
   const bounds = mergeFarmlands && allPathsData?.view_bounds
     ? getBoundsFromViewBounds(allPathsData.view_bounds)
@@ -145,18 +135,16 @@ export default function PathVisualization({
   return (
     <div className={styles['visualization-container']}>
       <MapContainer
-        crs={L.CRS.Simple}
         bounds={bounds}
         style={{ width: '100%', height: '100%' }}
         zoomControl={true}
         scrollWheelZoom={true}
         className={styles['map-container']}
         data-testid="map-container"
+        maxZoom={18}
+        minZoom={3}
       >
-        <TileLayer
-          attribution=''
-          url=''
-        />
+        <TiandituLayer layerType="img" showAnnotation={true} />
 
         {/* Farmland boundary polygons */}
         {allFarmlandsMode && allPathsData?.farmland_boundaries ? (
