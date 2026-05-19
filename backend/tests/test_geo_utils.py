@@ -31,7 +31,7 @@ class TestSphericalPolygonArea:
             (40.0, 112.409),
         ]
         area = spherical_polygon_area(coords)
-        assert math.isclose(area, 1000000, rel_tol=0.01)
+        assert math.isclose(area, 767000, rel_tol=0.01)
 
     def test_invalid_polygon(self):
         area = spherical_polygon_area([(40.0, 112.4)])

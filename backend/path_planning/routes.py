@@ -108,33 +108,33 @@ def check_farmland_ownership(farmland, user_id: str):
 
 def calculate_path_metrics(waypoints: List[Tuple[float, float]], swath_width: float = 10.0) -> Tuple[float, float, int]:
     """
-    计算路径指标
+    Calculate path metrics
     
     Args:
-        waypoints: 航点列表
-        swath_width: 耕幅宽度
+        waypoints: Waypoints in [lng, lat] format
+        swath_width: Swath width
     
     Returns:
-        (总距离，预计时间，转弯次数)
+        (total_distance, estimated_time, turn_count)
     """
     if len(waypoints) < 2:
         return 0.0, 0.0, 0
     
-    # 计算总距离（使用 Haversine 公式计算地理坐标距离）
+    # Calculate total distance using Haversine formula
+    # waypoints are [lng, lat], so: lon=waypoint[0], lat=waypoint[1]
     total_distance = 0.0
     for i in range(len(waypoints) - 1):
-        lat1, lon1 = waypoints[i]
-        lat2, lon2 = waypoints[i + 1]
+        lon1, lat1 = waypoints[i]
+        lon2, lat2 = waypoints[i + 1]
         total_distance += haversine_distance(lat1, lon1, lat2, lon2)
     
-    # 估算转弯次数（使用方位角）
+    # Estimate turn count using bearing
     turn_count = 0
-    angle_threshold = math.radians(5)  # 5 度阈值
     
     for i in range(1, len(waypoints) - 1):
-        lat1, lon1 = waypoints[i - 1]
-        lat2, lon2 = waypoints[i]
-        lat3, lon3 = waypoints[i + 1]
+        lon1, lat1 = waypoints[i - 1]
+        lon2, lat2 = waypoints[i]
+        lon3, lat3 = waypoints[i + 1]
         
         bearing1 = calculate_bearing(lat1, lon1, lat2, lon2)
         bearing2 = calculate_bearing(lat2, lon2, lat3, lon3)
@@ -143,12 +143,12 @@ def calculate_path_metrics(waypoints: List[Tuple[float, float]], swath_width: fl
         if angle_diff > 180:
             angle_diff = 360 - angle_diff
         
-        if angle_diff > 5:  # 5度阈值
+        if angle_diff > 5:
             turn_count += 1
     
-    # 估算时间（假设平均速度 5 米/秒，转弯额外 3 秒）
-    avg_speed = 5.0  # 米/秒
-    turn_time = 3.0  # 秒
+    # Estimate time (average speed 5 m/s, turn extra 3 seconds)
+    avg_speed = 5.0
+    turn_time = 3.0
     
     travel_time = total_distance / avg_speed
     total_time_seconds = travel_time + (turn_count * turn_time)
@@ -581,16 +581,22 @@ async def generate_path_for_all(
                 all_coords.extend(boundary["coords"])
             
             if all_coords:
-                xs = [c[0] for c in all_coords]
-                ys = [c[1] for c in all_coords]
-                padding = 50  # 边距缓冲
+                lons = [c[0] for c in all_coords]  # longitude
+                lats = [c[1] for c in all_coords]  # latitude
+                
+                # Calculate padding in degrees (about 100-200 meters at this latitude)
+                lon_range = max(lons) - min(lons)
+                lat_range = max(lats) - min(lats)
+                lon_padding = max(lon_range * 0.2, 0.002)  # minimum ~200m
+                lat_padding = max(lat_range * 0.2, 0.002)
+                
                 view_bounds = {
-                    "min_x": min(xs) - padding,
-                    "max_x": max(xs) + padding,
-                    "min_y": min(ys) - padding,
-                    "max_y": max(ys) + padding,
-                    "center_x": (min(xs) + max(xs)) / 2,
-                    "center_y": (min(ys) + max(ys)) / 2
+                    "min_x": min(lons) - lon_padding,
+                    "max_x": max(lons) + lon_padding,
+                    "min_y": min(lats) - lat_padding,
+                    "max_y": max(lats) + lat_padding,
+                    "center_x": (min(lons) + max(lons)) / 2,
+                    "center_y": (min(lats) + max(lats)) / 2
                 }
             else:
                 view_bounds = None

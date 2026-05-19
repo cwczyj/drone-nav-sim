@@ -16,7 +16,7 @@ class TestGeoIntegration:
             (40.0, 112.409),
         ]
         area_sqm = spherical_polygon_area(coords)
-        assert 800000 < area_sqm < 1200000
+        assert 700000 < area_sqm < 800000
 
     def test_youyu_region_center(self):
         from path_planning.geo_utils import YOUYU_REGION

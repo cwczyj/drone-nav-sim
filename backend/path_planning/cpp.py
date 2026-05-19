@@ -15,27 +15,87 @@ from shapely.ops import split, unary_union
 import math
 from typing import List, Tuple, Optional
 
+from .geo_utils import latlon_to_local, local_to_latlon, get_center_coord
+
 
 def generate_coverage_path(
     polygon: List[List[float]], 
     swath_width: float = 10.0, 
-    start_point: Optional[List[float]] = None
+    start_point: Optional[List[float]] = None,
+    is_geographic: bool = True
 ) -> List[List[float]]:
-    """
-    生成覆盖路径的主函数
-    
-    使用Boustrophedon分解算法生成覆盖整个多边形区域的路径。
+    """Generate coverage path for a polygon area
     
     Args:
-        polygon: 多边形坐标列表 [[x, y], [x, y], ...]
-        swath_width: 耕幅宽度（米），默认10米
-        start_point: 可选的起始点 [x, y]，如果未指定则从左下角开始
+        polygon: Polygon coordinates [[x, y], ...]. 
+                 If is_geographic=True: [[lng, lat], ...] in degrees.
+                 If is_geographic=False: [[x, y], ...] in meters.
+        swath_width: Swath width in meters (default 10m)
+        start_point: Optional starting point [x, y]
+        is_geographic: Whether input coordinates are geographic (lng, lat)
     
     Returns:
-        路径点列表 [[x, y], [x, y], ...]
+        Path waypoints [[x, y], ...] in the same coordinate system as input
     """
-    planner = CoveragePathPlanner(polygon, swath_width)
-    return planner.generate_path(start_point)
+    if is_geographic:
+        return _generate_geographic_coverage_path(polygon, swath_width, start_point)
+    else:
+        planner = CoveragePathPlanner(polygon, swath_width)
+        return planner.generate_path(start_point)
+
+
+def _generate_geographic_coverage_path(
+    polygon_lnglat: List[List[float]], 
+    swath_width: float = 10.0,
+    start_point: Optional[List[float]] = None
+) -> List[List[float]]:
+    """Generate coverage path for geographic coordinates
+    
+    Converts geographic coords to local meter coords, generates path,
+    then converts back to geographic coords.
+    
+    Args:
+        polygon_lnglat: Polygon coordinates [[lng, lat], ...] in degrees
+        swath_width: Swath width in meters
+        start_point: Optional starting point [lng, lat]
+    
+    Returns:
+        Path waypoints [[lng, lat], ...] in degrees
+    """
+    # Convert [lng, lat] to (lat, lon) for geo_utils
+    coords_latlon = [(c[1], c[0]) for c in polygon_lnglat]
+    
+    # Calculate center point as origin
+    origin_lat, origin_lon = get_center_coord(coords_latlon)
+    
+    # Convert to local meter coordinates (returns (x, y) = (east, north))
+    local_coords = latlon_to_local(coords_latlon, origin_lat, origin_lon)
+    
+    # Convert to [x, y] format for CoveragePathPlanner
+    local_polygon = [[x, y] for x, y in local_coords]
+    
+    # Generate path in local coordinates
+    planner = CoveragePathPlanner(local_polygon, swath_width)
+    local_path = planner.generate_path()
+    
+    if not local_path:
+        return []
+    
+    # Convert start_point if provided
+    local_start = None
+    if start_point:
+        start_latlon = (start_point[1], start_point[0])
+        local_start_list = latlon_to_local([start_latlon], origin_lat, origin_lon)
+        local_start = list(local_start_list[0])
+    
+    # Convert path back to geographic coordinates
+    local_path_tuples = [(p[0], p[1]) for p in local_path]
+    geo_path_tuples = local_to_latlon(local_path_tuples, origin_lat, origin_lon)
+    
+    # Convert back to [lng, lat] format
+    geo_path = [[lon, lat] for lat, lon in geo_path_tuples]
+    
+    return geo_path
 
 
 class CoveragePathPlanner:

@@ -21,7 +21,6 @@ describe('haversineDistance', () => {
 
 describe('sphericalPolygonArea', () => {
   it('should calculate area for a simple polygon', () => {
-    // 1km x 1km 正方形 ≈ 1000000 m²
     const coords = [
       { latitude: 40.0, longitude: 112.4 },
       { latitude: 40.009, longitude: 112.4 },
@@ -29,7 +28,7 @@ describe('sphericalPolygonArea', () => {
       { latitude: 40.0, longitude: 112.409 },
     ];
     const area = sphericalPolygonArea(coords);
-    expect(area).toBeCloseTo(1000000, -4);
+    expect(area).toBeCloseTo(767000, -4);
   });
 
   it('should return 0 for invalid polygon', () => {

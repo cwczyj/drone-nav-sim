@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { MapContainer, Polygon } from 'react-leaflet';
+import { MapContainer, Polygon, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './MapCanvas.css';
 import DrawingControls, { type DrawingMode } from './DrawingControls';
 import PolygonDrawing from './PolygonDrawing';
 import TiandituLayer from './TiandituLayer';
-import { YOUYU_REGION } from '../../utils/geography';
+import { YOUYU_REGION, calculateBoundsFromMultiplePolygons } from '../../utils/geography';
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -35,23 +35,41 @@ const generateId = (): string => {
   return `polygon-${Math.random().toString(36).substring(2, 9)}`;
 };
 
-// Generate distinct colors for polygons based on their position
 const generateColorForPolygon = (coordinates: [number, number][], index: number): { color: string; fillColor: string } => {
-  // Calculate centroid of the polygon
   const centerX = coordinates.reduce((sum, [x]) => sum + x, 0) / coordinates.length;
   const centerY = coordinates.reduce((sum, [, y]) => sum + y, 0) / coordinates.length;
   
-  // Use HSL color space to generate distinct colors
-  // Hue is based on position to ensure nearby polygons have different colors
   const hue = (centerX * 0.5 + centerY * 0.5 + index * 35) % 360;
-  const saturation = 70 + (index % 3) * 10; // 70-90%
-  const lightness = 45 + (index % 4) * 5;   // 45-60%
+  const saturation = 70 + (index % 3) * 10;
+  const lightness = 45 + (index % 4) * 5;
   
   return {
     color: `hsl(${hue}, ${saturation}%, ${lightness}%)`,
     fillColor: `hsl(${hue}, ${saturation}%, ${lightness + 10}%)`,
   };
 };
+
+function FitBounds({ polygons }: { polygons: PolygonData[] }) {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (polygons.length > 0) {
+      const allCoords = polygons.map(p => p.coordinates);
+      const bounds = calculateBoundsFromMultiplePolygons(allCoords);
+      map.fitBounds([
+        [bounds.minLat, bounds.minLng],
+        [bounds.maxLat, bounds.maxLng]
+      ]);
+    } else {
+      map.fitBounds([
+        [YOUYU_REGION.bounds.minLat, YOUYU_REGION.bounds.minLng],
+        [YOUYU_REGION.bounds.maxLat, YOUYU_REGION.bounds.maxLng]
+      ]);
+    }
+  }, [polygons, map]);
+  
+  return null;
+}
 
 export default function MapCanvas({
   polygons = [],
@@ -62,23 +80,6 @@ export default function MapCanvas({
   const mapRef = useRef<L.Map | null>(null);
   const [drawingMode, setDrawingMode] = useState<DrawingMode>('view');
   const [currentPolygon, setCurrentPolygon] = useState<PolygonData | null>(null);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (map) {
-      map.fitBounds([
-        [YOUYU_REGION.bounds.minLat, YOUYU_REGION.bounds.minLng],
-        [YOUYU_REGION.bounds.maxLat, YOUYU_REGION.bounds.maxLng]
-      ]);
-      
-      // Enable scroll wheel zoom when not in view mode
-      if (editable && drawingMode !== 'view') {
-        map.scrollWheelZoom.enable();
-      } else {
-        map.scrollWheelZoom.disable();
-      }
-    }
-  }, [editable, drawingMode]);
 
   const handlePolygonCreate = (coordinates: [number, number][]) => {
     const newPolygon: PolygonData = {
@@ -119,7 +120,7 @@ export default function MapCanvas({
       <MapContainer
         ref={mapRef}
         center={[YOUYU_REGION.center.latitude, YOUYU_REGION.center.longitude]}
-        zoom={12}
+        zoom={13}
         maxZoom={18}
         minZoom={3}
         style={{ width: '100%', height: '100%' }}
@@ -130,6 +131,7 @@ export default function MapCanvas({
         className="map-canvas"
       >
         <TiandituLayer layerType="img" showAnnotation={true} />
+        <FitBounds polygons={displayPolygons} />
         
         {displayPolygons.map((polygon, index) => {
           // Auto-generate color if not provided

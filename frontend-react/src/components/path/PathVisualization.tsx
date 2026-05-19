@@ -18,26 +18,36 @@ interface PathVisualizationProps {
   mergeFarmlands?: boolean;
 }
 
-// Calculate bounds from boundary coordinates
+// Calculate bounds from boundary coordinates with proper padding
 const getBounds = (boundaryCoords: number[][]): [[number, number], [number, number]] => {
   if (boundaryCoords.length === 0) {
-    return [[-1, -1], [1, 1]];
+    return [[39.95, 112.35], [40.05, 112.45]]; // Default to Youyu region
   }
-  const xs = boundaryCoords.map(c => c[0]);
-  const ys = boundaryCoords.map(c => c[1]);
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
-  // Add some padding
-  const padding = Math.max(maxX - minX, maxY - minY) * 0.1;
+  
+  // coords are [lng, lat], Leaflet bounds need [[lat, lng], [lat, lng]]
+  const lngs = boundaryCoords.map(c => c[0]);
+  const lats = boundaryCoords.map(c => c[1]);
+  
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  
+  // Calculate padding as 20% of the range (minimum 0.001 degrees for small areas)
+  const lngRange = maxLng - minLng;
+  const latRange = maxLat - minLat;
+  const lngPadding = Math.max(lngRange * 0.2, 0.001);
+  const latPadding = Math.max(latRange * 0.2, 0.001);
+  
   return [
-    [minY - padding, minX - padding],
-    [maxY + padding, maxX + padding]
+    [minLat - latPadding, minLng - lngPadding], // Southwest corner [lat, lng]
+    [maxLat + latPadding, maxLng + lngPadding]  // Northeast corner [lat, lng]
   ];
 };
 
-// Calculate bounds from view_bounds (backend provided)
+// Calculate bounds from view_bounds (backend provided in degrees)
+// Backend sends: min_x=lng_min, min_y=lat_min, max_x=lng_max, max_y=lat_max
+// Leaflet needs: [[lat_min, lng_min], [lat_max, lng_max]]
 const getBoundsFromViewBounds = (viewBounds: {
   min_x: number;
   max_x: number;
@@ -45,8 +55,8 @@ const getBoundsFromViewBounds = (viewBounds: {
   max_y: number;
 }): [[number, number], [number, number]] => {
   return [
-    [viewBounds.min_y, viewBounds.min_x],
-    [viewBounds.max_y, viewBounds.max_x]
+    [viewBounds.min_y, viewBounds.min_x], // Southwest [lat, lng]
+    [viewBounds.max_y, viewBounds.max_x]  // Northeast [lat, lng]
   ];
 };
 

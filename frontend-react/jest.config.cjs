@@ -13,7 +13,7 @@ module.exports = {
   transformIgnorePatterns: [
     'node_modules/(?!(react-leaflet|leaflet)/)',
   ],
-  testMatch: ['**/__tests__/**/*.test.tsx', '**/?(*.)+(spec|test).tsx'],
+  testMatch: ['**/__tests__/**/*.test.{ts,tsx}', '**/?(*.)+(spec|test).{ts,tsx}'],
   testTimeout: 10000,
   clearMocks: true,
   resetMocks: true,

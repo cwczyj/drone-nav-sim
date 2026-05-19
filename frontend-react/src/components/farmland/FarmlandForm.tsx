@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Input, Select, Button, Card, Space, Typography, message } from 'antd';
 import type { FarmlandCreate } from '../../types';
-import { calculatePolygonArea, formatArea } from '../../utils/geometry';
+import { calculateGeographicAreaMu, formatArea } from '../../utils/geography';
 
 interface FarmlandFormProps {
   polygonCoords: [number, number][];
@@ -31,7 +31,7 @@ export const FarmlandForm: React.FC<FarmlandFormProps> = ({
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
 
-  const area = calculatePolygonArea(polygonCoords);
+  const area = calculateGeographicAreaMu(polygonCoords);
 
   useEffect(() => {
     if (initialData) {

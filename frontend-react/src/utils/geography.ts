@@ -41,7 +41,7 @@ export function haversineDistance(
 export function sphericalPolygonArea(coords: GeoCoordinate[]): number {
   if (coords.length < 3) return 0;
 
-  const R = 6371000; // 地球半径（米）
+  const R = 6371000;
   const rad = Math.PI / 180;
 
   let area = 0;
@@ -54,10 +54,10 @@ export function sphericalPolygonArea(coords: GeoCoordinate[]): number {
     const lat2 = coords[j].latitude * rad;
     const lon2 = coords[j].longitude * rad;
 
-    area += lon1 * lat2 - lon2 * lat1;
+    area += (lon2 - lon1) * (Math.sin(lat1) + Math.sin(lat2));
   }
 
-  area = Math.abs(area * R * R / 2);
+  area = Math.abs(area) * R * R / 2;
   return area;
 }
 
@@ -96,6 +96,18 @@ export function sqmToMu(sqm: number): number {
   return sqm / 666.67;
 }
 
+export function calculateGeographicAreaMu(coords: [number, number][]): number {
+  if (coords.length < 3) return 0;
+  const geoCoords: GeoCoordinate[] = coords.map(([lng, lat]) => ({ latitude: lat, longitude: lng }));
+  const areaSqM = sphericalPolygonArea(geoCoords);
+  return sqmToMu(areaSqM);
+}
+
+export function formatArea(area: number): string {
+  if (area === 0) return '0 亩';
+  return `${area.toFixed(2)} 亩`;
+}
+
 /**
  * 山西右玉默认区域参数
  */
@@ -108,3 +120,39 @@ export const YOUYU_REGION = {
     maxLng: 112.45,
   },
 };
+
+export function calculateBoundsFromCoords(coords: [number, number][]): {
+  minLat: number;
+  maxLat: number;
+  minLng: number;
+  maxLng: number;
+} {
+  if (coords.length === 0) {
+    return YOUYU_REGION.bounds;
+  }
+  
+  const lngs = coords.map(c => c[0]);
+  const lats = coords.map(c => c[1]);
+  
+  const lngRange = Math.max(...lngs) - Math.min(...lngs);
+  const latRange = Math.max(...lats) - Math.min(...lats);
+  const lngPadding = Math.max(lngRange * 0.2, 0.002);
+  const latPadding = Math.max(latRange * 0.2, 0.002);
+  
+  return {
+    minLng: Math.min(...lngs) - lngPadding,
+    maxLng: Math.max(...lngs) + lngPadding,
+    minLat: Math.min(...lats) - latPadding,
+    maxLat: Math.max(...lats) + latPadding,
+  };
+}
+
+export function calculateBoundsFromMultiplePolygons(polygons: [number, number][][]): {
+  minLat: number;
+  maxLat: number;
+  minLng: number;
+  maxLng: number;
+} {
+  const allCoords = polygons.flat();
+  return calculateBoundsFromCoords(allCoords);
+}
